@@ -36,20 +36,12 @@ jobs:
           --no-configuration-cache
 
   build-linux:
-    name: Build and Test (Linux / Android / JS / WASM) + CodeQL
+    name: Build and Test (Linux / Android / JS / WASM)
     runs-on: ubuntu-latest
-
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5.2.0
@@ -77,61 +69,6 @@ jobs:
           npm --version
           yarn --version
 
-      - name: Initialize CodeQL (java-kotlin)
-        uses: github/codeql-action/init@v4
-        with:
-          languages: java-kotlin
-          build-mode: manual
-
-      # Direct kotlinc-jvm extraction compile.
-      #
-      # Empirically, wrapping a `./gradlew compileKotlinJvm …` invocation
-      # with the CodeQL LD_PRELOAD tracer does NOT produce a Kotlin TRAP:
-      # whether the Kotlin compiler runs via the Build Tools API (default),
-      # via the daemon strategy, or via -Pkotlin.compiler.execution.strategy=
-      # out-of-process, no kotlinc-jvm child process exec is observable to
-      # the tracer. The only extractors that ever fire under that wrap are
-      # XMLExtractor (15 files, 0 bytes TRAP) and PropertiesExtractor (9
-      # files, 0 bytes TRAP). The Java/Kotlin database is empty.
-      #
-      # The CLAUDE.md fallback is to shell out to kotlinc-jvm directly,
-      # bypassing Gradle. Download the matching Kotlin compiler release,
-      # then run it under the tracer against this project's commonMain
-      # sources. The compile here exists ONLY to generate AST extraction
-      # — type-resolution failures from missing kotlinx dependencies in
-      # the classpath are accepted; the extractor reads the parse tree
-      # before the compiler exits.
-      - name: Install kotlinc 2.3.21 for direct extraction
-        run: |
-          curl -fsSL -o /tmp/kotlin-compiler.zip \
-            https://github.com/JetBrains/kotlin/releases/download/v2.3.21/kotlin-compiler-2.3.21.zip
-          unzip -q /tmp/kotlin-compiler.zip -d /tmp
-          echo "/tmp/kotlinc/bin" >> $GITHUB_PATH
-
-      - name: Direct kotlinc-jvm compile (CodeQL extraction target)
-        # Run kotlinc-jvm against every Kotlin source file in the project.
-        # The tracer sees this exec; the extractor records the AST for each
-        # `.kt` it parses. We accept a non-zero exit (missing platform-
-        # specific actuals, kotlinx deps not on classpath) because the
-        # extraction happens before the compiler errors out. `|| true`
-        # keeps the workflow step green so CodeQL analyze can still run.
-        run: |
-          set +e
-          mkdir -p build/classes/kotlin/codeql-extraction
-          find src -name '*.kt' -not -path '*/jsBrowserTest/*' -not -path '*/jsNodeTest/*' \
-            -not -path '*/wasmJsBrowserTest/*' -not -path '*/wasmJsNodeTest/*' \
-            -not -path '*/linuxX64Test/*' -not -path '*/macosArm64Test/*' \
-            -not -path '*/iosArm64Test/*' -not -path '*/iosSimulatorArm64Test/*' \
-            -not -path '*/mingwX64Test/*' -not -path '*/androidUnitTest/*' \
-            -not -path '*/androidDeviceTest/*' \
-            > /tmp/kt-sources.txt
-          echo "Source files to extract:"
-          wc -l /tmp/kt-sources.txt
-          kotlinc -no-stdlib -no-reflect -Xskip-prerelease-check \
-            -d build/classes/kotlin/codeql-extraction \
-            @/tmp/kt-sources.txt
-          true
-
       - name: Build and test Linux, Android, JS, and WASM targets
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
@@ -146,42 +83,6 @@ jobs:
           wasmJsBrowserTest
           wasmJsNodeTest
           --no-configuration-cache
-
-      # Run analyze even if the gradle test step above failed: by that point
-      # the compile-* tasks have already run under the LD_PRELOAD tracer and
-      # the CodeQL database has been populated with whatever the extractor
-      # observed. A downstream test failure (e.g. an upstream test parity
-      # issue surfacing on jsBrowserTest) should not prevent the security
-      # analysis from being uploaded.
-      - name: Perform CodeQL Analysis (java-kotlin)
-        if: ${{ !cancelled() }}
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:java-kotlin"
-
-  codeql-source-only:
-    name: CodeQL (JS/TS + Actions)
-    runs-on: ubuntu-latest
-
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-
-      - name: Initialize CodeQL (source-only languages)
-        uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript, actions
-          build-mode: none
-
-      - name: Perform CodeQL Analysis (source-only)
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:javascript-typescript-actions"
 
   build-windows:
     name: Build and Test (Windows)

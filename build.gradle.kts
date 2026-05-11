@@ -85,13 +85,6 @@ kotlin {
         nodejs()
     }
 
-    // The `jvm()` target exists so CodeQL's Java/Kotlin extractor has a JVM
-    // compilation task (`compileKotlinJvm`) to wrap. It is not a shipped
-    // artifact — see the `afterEvaluate` block below which removes the `jvm`
-    // Maven publication. `jvmMain` shares code with `androidMain` through the
-    // `jvmAndAndroidMain` intermediate source set declared further down.
-    jvm()
-
     swiftExport {
         moduleName = "Mime"
         flattenPackage = "io.github.kotlinmania.mime"
@@ -119,28 +112,8 @@ kotlin {
         }
 
         val commonTest by getting { dependencies { implementation(kotlin("test")) } }
-
-        // Shared intermediate source set between `jvmMain` (CodeQL-only) and
-        // `androidMain`. Android already inherits from `commonMain` via the
-        // default hierarchy template, so any code that genuinely needs to be
-        // shared with the JVM target goes here. Today this is empty — both
-        // platforms see only `commonMain` — and the intermediate exists so
-        // that any future JVM-shaped `actual` automatically appears on
-        // Android too.
-        val jvmAndAndroidMain by creating { dependsOn(commonMain) }
-        named("androidMain") { dependsOn(jvmAndAndroidMain) }
-        named("jvmMain") { dependsOn(jvmAndAndroidMain) }
     }
     jvmToolchain(21)
-}
-
-// The `jvm()` target exists only so CodeQL's Java/Kotlin extractor has a
-// `compileKotlinJvm` task to wrap. Disable every `publishJvm*` task so no
-// `-jvm` artifact ships alongside the real KMP coordinates.
-afterEvaluate {
-    tasks.matching { it.name.startsWith("publishJvm") }.configureEach {
-        enabled = false
-    }
 }
 
 rootProject.extensions.configure<NodeJsEnvSpec>("kotlinNodeJsSpec") {
