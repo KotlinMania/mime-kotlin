@@ -15,6 +15,12 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege default for any future inline job. The two CodeQL jobs
+# below override with `security-events: write` (required for SARIF upload)
+# plus `actions: read` (required by codeql-action/analyze@v4).
+permissions:
+  contents: read
+
 jobs:
   codeql-java-kotlin:
     name: CodeQL (java-kotlin)

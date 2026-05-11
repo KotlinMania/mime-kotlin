@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege default for any inline job in this file. The reusable
+# workflows invoked below declare their own permissions; this top-level
+# block only applies to direct jobs in ci.yml itself.
+permissions:
+  contents: read
+
 # Orchestrator workflow. Each platform's build/test lives in its own reusable
 # workflow (.github/workflows/<platform>.yml with `on: workflow_call:`) and is
 # invoked here as a single job. Each invocation surfaces as an independent
