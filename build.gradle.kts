@@ -64,25 +64,21 @@ kotlin {
             xcf.add(this)
         }
     }
-    // Executor-keyed split for the JS target family (workspace template
-    // fix #3). Kotlin 2.3.21 does not expose separate `browser`/`nodejs`
-    // KotlinJsIrCompilation objects on a single `js` target — both runtimes
-    // share one `main` compilation. Splitting into named top-level targets
-    // gives each runtime its own Main source set (`jsBrowserMain` /
-    // `jsNodeMain`) so Node-only `actual`s never reach the webpack browser
-    // bundle.
-    js("jsBrowser") {
+    // Single `js` target with both browser() and nodejs() runtime configurations.
+    // The asymmetric `js("jsBrowser")` + `js("jsNode")` split that the workspace
+    // template once prescribed cannot satisfy Gradle 9.x's "unique attribute
+    // sets" rule: the two targets emit `jsBrowserApiElements` and
+    // `jsNodeApiElements` consumable configurations that share an identical
+    // attribute set, and the configuration of the `:compileAndroidHostTest`
+    // task fails with "Consumable configurations with identical capabilities …
+    // must have unique attributes". Since this port has no Node-only `actual`
+    // (the upstream `mime` crate is pure parsing — no fs, no process), the
+    // single-target layout is also adequate at the source level.
+    js {
         browser()
-    }
-    js("jsNode") {
         nodejs()
     }
 
-    // wasmJs stays unsplit: Kotlin 2.3.21 disallows multiple wasmJs targets
-    // ("Declaring multiple Kotlin Targets of the same type is not supported"
-    // — only `js` has a temporary backdoor; see
-    // https://kotl.in/declaring-multiple-targets). Until KGP supports the
-    // split, wasmJsMain stays a single source set across both runtimes.
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
@@ -123,31 +119,6 @@ kotlin {
         }
 
         val commonTest by getting { dependencies { implementation(kotlin("test")) } }
-
-        // Executor-keyed JS source-set hierarchy (workspace template fix #3).
-        // `jsBrowserMain` and `jsNodeMain` are the auto-created Main source
-        // sets for the `js("jsBrowser")` and `js("jsNode")` targets above.
-        //
-        //                  commonMain
-        //                  /        \
-        //               jsMain     wasmJsMain         (target-family axis)
-        //               /    \
-        //      jsBrowserMain  jsNodeMain              (executor axis, JS only)
-        //
-        // `jsMain` is a runtime-agnostic intermediate so any future
-        // src/jsMain/kotlin/ code keeps feeding both jsBrowser and jsNode.
-        // `wasmJsMain` remains a single source set across both wasmJs
-        // runtimes because KGP rejects multiple wasmJs targets. Any future
-        // Node-only wasmJs `actual` must rely on the `typeof process`
-        // runtime guard (workspace CLAUDE.md fix #4).
-        //
-        // `browserMain` / `nodeMain` per-executor intermediates are not
-        // wired here: with wasmJs unsplit they would have only one member
-        // each on the JS side, making them degenerate. Reintroduce them
-        // once Kotlin Multiplatform lifts the wasmJs single-target rule.
-        val jsMain by creating { dependsOn(commonMain) }
-        named("jsBrowserMain") { dependsOn(jsMain) }
-        named("jsNodeMain") { dependsOn(jsMain) }
 
         // Shared intermediate source set between `jvmMain` (CodeQL-only) and
         // `androidMain`. Android already inherits from `commonMain` via the
