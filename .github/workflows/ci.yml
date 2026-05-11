@@ -99,7 +99,14 @@ jobs:
           wasmJsNodeTest
           --no-configuration-cache
 
+      # Run analyze even if the gradle test step above failed: by that point
+      # the compile-* tasks have already run under the LD_PRELOAD tracer and
+      # the CodeQL database has been populated with whatever the extractor
+      # observed. A downstream test failure (e.g. an upstream test parity
+      # issue surfacing on jsBrowserTest) should not prevent the security
+      # analysis from being uploaded.
       - name: Perform CodeQL Analysis (java-kotlin)
+        if: ${{ !cancelled() }}
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:java-kotlin"
