@@ -8,16 +8,32 @@ name: CodeQL
 # Build/test jobs live in ci.yml. CodeQL jobs live here. A test failure in
 # ci.yml does NOT mark CodeQL red, and a CodeQL extraction issue here does
 # NOT mark the build red.
+#
+# Three independent jobs map to GitHub's standard per-language category
+# convention:
+#   - codeql-java-kotlin       → /language:java-kotlin
+#   - codeql-javascript-typescript → /language:javascript-typescript
+#   - codeql-actions           → /language:actions
+# This matches what GitHub Code Scanning's UI registers as separate
+# configurations; combining JS and Actions into a single job with a non-
+# standard `/language:javascript-typescript-actions` category previously
+# left the UI confused about which configuration was current.
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  # Weekly periodic scan catches supply-chain CVEs that appear after merge
+  # when the repo isn't actively receiving commits. Sunday 16:44 UTC is the
+  # GitHub-template default.
+  schedule:
+    - cron: '44 16 * * 0'
 
-# Least-privilege default for any future inline job. The two CodeQL jobs
-# below override with `security-events: write` (required for SARIF upload)
-# plus `actions: read` (required by codeql-action/analyze@v4).
+# Least-privilege default for any future inline job. Each CodeQL job below
+# overrides with `security-events: write` (SARIF upload) plus `actions: read`
+# (codeql-action/analyze@v4) plus `packages: read` (private CodeQL pack
+# fetches via GHCR; harmless when no private packs are configured).
 permissions:
   contents: read
 
@@ -30,6 +46,7 @@ jobs:
       security-events: write
       actions: read
       contents: read
+      packages: read
 
     steps:
       - name: Checkout
@@ -49,6 +66,10 @@ jobs:
         with:
           languages: java-kotlin
           build-mode: manual
+          # Restores+stores the CodeQL bundle and dependency cache between
+          # runs. Default off in Advanced Setup; turning on cuts ~30-60s
+          # off the init step on warm cache.
+          dependency-caching: true
 
       # The Kotlin extractor agent is attached to every JVM in this step via
       # JAVA_TOOL_OPTIONS=-javaagent:codeql-java-agent.jar=java,kotlin. This
@@ -78,26 +99,54 @@ jobs:
         with:
           category: "/language:java-kotlin"
 
-  codeql-source-only:
-    name: CodeQL (JS/TS + Actions)
+  codeql-javascript-typescript:
+    name: CodeQL (javascript-typescript)
     runs-on: ubuntu-latest
 
     permissions:
       security-events: write
       actions: read
       contents: read
+      packages: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
-      - name: Initialize CodeQL (source-only languages)
+      - name: Initialize CodeQL (javascript-typescript)
         uses: github/codeql-action/init@v4
         with:
-          languages: javascript-typescript, actions
+          languages: javascript-typescript
           build-mode: none
+          dependency-caching: true
 
-      - name: Perform CodeQL Analysis (source-only)
+      - name: Perform CodeQL Analysis (javascript-typescript)
         uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:javascript-typescript-actions"
+          category: "/language:javascript-typescript"
+
+  codeql-actions:
+    name: CodeQL (actions)
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Initialize CodeQL (actions)
+        uses: github/codeql-action/init@v4
+        with:
+          languages: actions
+          build-mode: none
+          dependency-caching: true
+
+      - name: Perform CodeQL Analysis (actions)
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:actions"
