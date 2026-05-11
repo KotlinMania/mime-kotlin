@@ -65,18 +65,23 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
-      - name: Compile Android Kotlin (JVM bytecode) for CodeQL extraction
+      - name: Compile every Kotlin target for CodeQL extraction
         if: matrix.build-mode == 'manual'
         shell: bash
-        # `compileAndroidMain` is the only compilation in this KMP project
-        # that emits real JVM `.class` files. The
-        # `com.android.kotlin.multiplatform.library` plugin runs JVM
-        # `kotlinc` for the Android target, which is what the CodeQL Kotlin
-        # extractor's LD_PRELOAD tracer can hook.
+        # `compileAndroidMain` emits real JVM `.class` files under
+        # `build/classes/kotlin/android/main` via the
+        # `com.android.kotlin.multiplatform.library` plugin — the JVM
+        # `kotlinc` exec is exactly what the CodeQL Kotlin extractor's
+        # LD_PRELOAD tracer hooks. `compileKotlinJs` and
+        # `compileKotlinWasmJs` are listed on the chance that the tracer
+        # also matches the K/JS and K/WASM compilers, in which case jsMain
+        # and wasmJsMain sources land in the database too.
         #
-        # `--rerun-tasks` defeats Gradle's up-to-date check and any
-        # restored build cache from setup-gradle so kotlinc is actually
-        # invoked.
+        # `--rerun-tasks --no-build-cache` defeats Gradle's up-to-date
+        # check and the cache hits restored by setup-gradle so kotlinc is
+        # actually invoked. `--no-configuration-cache --no-daemon` are
+        # belt-and-braces for the same property: every gradle invocation
+        # = new JVM = new traceable exec.
         #
         # `kotlin.compiler.execution.strategy=out-of-process` spawns a
         # fresh kotlinc JVM per compilation; the LD_PRELOAD tracer hooks
@@ -84,8 +89,12 @@ jobs:
         # intercept (the default `daemon` strategy reuses long-lived JVMs
         # the tracer wasn't around for).
         run: |
-          ./gradlew compileAndroidMain \
+          ./gradlew \
+            compileAndroidMain \
+            compileKotlinJs \
+            compileKotlinWasmJs \
             --rerun-tasks \
+            --no-build-cache \
             -Pkotlin.compiler.execution.strategy=out-of-process \
             --no-configuration-cache \
             --no-daemon
