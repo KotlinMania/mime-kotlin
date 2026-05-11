@@ -6,6 +6,20 @@ on:
   pull_request:
     branches: [main, master]
 
+# Each job below does exactly one thing the name claims, no more.
+#
+# Build/test jobs build and test on their respective host. They do not run
+# CodeQL. A test failure does NOT mark CodeQL red.
+#
+# CodeQL jobs run CodeQL extraction + analyse for one language family. They
+# do not run the host test matrix. A test failure on Linux does NOT mark
+# CodeQL red, and CodeQL extraction failing does NOT mark the build red.
+#
+# This split exists because the previous combined "Build and Test … +
+# CodeQL" job masked a real broken-CodeQL state behind test-pass status,
+# and (when the tests later failed) masked a working CodeQL behind the
+# test-fail status. Each job reports on one concern.
+
 jobs:
   build-macos-arm64:
     name: Build and Test (macOS arm64 / iOS simulator arm64 / Swift)
@@ -36,13 +50,8 @@ jobs:
           --no-configuration-cache
 
   build-linux:
-    name: Build and Test (Linux / Android / JS / WASM) + CodeQL
+    name: Build and Test (Linux / Android / JS / WASM)
     runs-on: ubuntu-latest
-
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
 
     steps:
       - name: Checkout
@@ -77,83 +86,93 @@ jobs:
           npm --version
           yarn --version
 
+      - name: Build and test Linux, Android, JS, and WASM targets
+        env:
+          ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
+        run: >
+          ./gradlew
+          compileAndroidMain
+          assembleUnitTest
+          assembleAndroidTest
+          jsBrowserTest
+          jsNodeTest
+          linuxX64Test
+          wasmJsBrowserTest
+          wasmJsNodeTest
+          --no-configuration-cache
+
+  build-windows:
+    name: Build and Test (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: zulu
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.1.0
+
+      - name: Build and test Windows target
+        run: ./gradlew mingwX64Test --no-configuration-cache
+
+  codeql-java-kotlin:
+    name: CodeQL (java-kotlin)
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: zulu
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.1.0
+
       - name: Initialize CodeQL (java-kotlin)
         uses: github/codeql-action/init@v4
         with:
           languages: java-kotlin
           build-mode: manual
 
-      # Build + CodeQL extraction
+      # The Kotlin extractor agent is attached to every JVM in this step via
+      # JAVA_TOOL_OPTIONS=-javaagent:codeql-java-agent.jar=java,kotlin. This
+      # is the JVM-spec attachment mechanism — every conforming JVM honors
+      # it at startup independently of any OS-level LD_PRELOAD tracing chain.
+      # The gradle daemon and the JavaExec subprocess that runs
+      # codeqlCompileJvm's kotlinc both load the agent. The `java,kotlin`
+      # spec registers both JavacMainInterceptor and KotlinInterceptor; the
+      # latter hooks `K2JVMCompiler.doExecute(...)` at class load time and
+      # writes per-source-file `*.kt.trap.gz` outputs under
+      # ${CODEQL_EXTRACTOR_JAVA_TRAP_DIR}.
       #
-      # The CodeQL Java agent is attached to every JVM in this step via
-      # JAVA_TOOL_OPTIONS, including the gradle daemon and the JavaExec
-      # subprocess that runs codeqlCompileJvm's kotlinc. The agent spec
-      # `java,kotlin` registers both extractors. This bypasses the
-      # LD_PRELOAD tracer mechanism entirely — every JVM the env var
-      # touches loads `codeql-java-agent.jar` directly, regardless of
-      # daemon reuse or env-propagation gaps between parent and child
-      # processes. Pure JVM contract: -javaagent is honored at JVM
-      # startup independently of any OS-level tracing.
-      #
-      # codeqlCompileJvm runs kotlinc 2.3.20 against commonMain because
-      # the workspace's mainline Kotlin 2.3.21 routes JVM multiplatform
-      # compilation through the K2 phased pipeline that the agent does
-      # not yet hook. 2.3.20 still dispatches through
-      # K2JVMCompiler.doExecute, which is what the agent's
-      # KotlinInterceptor instruments at class load time.
-      - name: Build and test Linux, Android, JS, and WASM targets (+ CodeQL extraction)
-        env:
-          ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
+      # codeqlCompileJvm runs kotlinc against commonMain as a single-target
+      # JVM compile (no -Xmulti-platform, no -Xfragments). The K2 phased
+      # compilation pipeline that the agent does NOT hook is only engaged
+      # for multiplatform-fragment compiles; a single-target invocation
+      # still dispatches through K2JVMCompiler.doExecute on the same Kotlin
+      # 2.3.21 compiler the workspace uses everywhere else.
+      - name: Extract Kotlin via CodeQL agent
         run: |
           export JAVA_TOOL_OPTIONS="-javaagent:${CODEQL_EXTRACTOR_JAVA_ROOT}/tools/codeql-java-agent.jar=java,kotlin"
           echo "JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}"
-          ./gradlew \
-            --no-daemon \
-            codeqlCompileJvm \
-            compileAndroidMain \
-            assembleUnitTest \
-            assembleAndroidTest \
-            jsBrowserTest \
-            jsNodeTest \
-            linuxX64Test \
-            wasmJsBrowserTest \
-            wasmJsNodeTest \
-            --no-configuration-cache
+          ./gradlew --no-daemon codeqlCompileJvm --no-configuration-cache
 
-      # Diagnostic: confirm the Kotlin extractor actually ran. If this step
-      # finds no kotlin-extractor.*.log and no *.kt.trap.gz under the trap
-      # dir, extraction was fake-green and we should not trust the analyze
-      # results.
-      - name: CodeQL extractor diagnostic
-        if: ${{ !cancelled() }}
-        run: |
-          echo "=== Java extractor log dir ==="
-          ls -la "${CODEQL_EXTRACTOR_JAVA_LOG_DIR}" 2>/dev/null || echo "(missing)"
-          echo
-          echo "=== agent.*.log (first 3 lines each) ==="
-          for f in "${CODEQL_EXTRACTOR_JAVA_LOG_DIR}"/agent.*.log; do
-            [ -e "$f" ] || continue
-            echo "--- $(basename "$f") ---"
-            head -3 "$f"
-          done
-          echo
-          echo "=== kotlin-extractor.*.log (first 30 lines each) ==="
-          for f in "${CODEQL_EXTRACTOR_JAVA_LOG_DIR}"/kotlin-extractor.*.log; do
-            [ -e "$f" ] || { echo "(no kotlin-extractor logs — agent did not fire)"; break; }
-            echo "--- $(basename "$f") ---"
-            head -30 "$f"
-          done
-          echo
-          echo "=== per-file *.kt.trap.gz count ==="
-          find "${CODEQL_EXTRACTOR_JAVA_TRAP_DIR}" -name '*.kt.trap.gz' 2>/dev/null | wc -l
-          echo "=== source archive .kt count ==="
-          find "${CODEQL_EXTRACTOR_JAVA_SOURCE_ARCHIVE_DIR}" -name '*.kt' 2>/dev/null | wc -l
-
-      # Analyze runs even if the gradle test step failed: the CodeQL extractor
-      # ran during codeqlCompileJvm (which comes first in the task list) and the
-      # database is populated before any test task can fail.
       - name: Perform CodeQL Analysis (java-kotlin)
-        if: ${{ !cancelled() }}
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:java-kotlin"
@@ -181,23 +200,3 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript-typescript-actions"
-
-  build-windows:
-    name: Build and Test (Windows)
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5.2.0
-        with:
-          distribution: zulu
-          java-version: '21'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.0
-
-      - name: Build and test Windows target
-        run: ./gradlew mingwX64Test --no-configuration-cache
