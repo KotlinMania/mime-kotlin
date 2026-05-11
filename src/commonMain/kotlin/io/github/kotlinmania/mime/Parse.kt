@@ -1,4 +1,4 @@
-// port-lint: source src/parse.rs
+// port-lint: source parse.rs
 package io.github.kotlinmania.mime
 
 sealed class ParseError : Exception {
@@ -244,7 +244,7 @@ private fun lowerAsciiWithParams(
         }
         // Since we just converted this part of the string to lowercase,
         // we can skip the Name == String unicase check and do a faster
-        // memcmp instead.
+        // byte-wise comparison instead.
         if (owned.substring(nameIdx.first, nameIdx.second) == CHARSET.source) {
             for (k in valueIdx.first until valueIdx.second) {
                 owned[k] = owned[k].lowercaseChar()
@@ -290,7 +290,7 @@ private fun lowerAsciiWithParams(
 // >     tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
 // >        "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
 //
-// So, clearly, the parser accepts the HTTP token set.
+// So, clearly, ¯\_(Ä_/¯
 
 internal val TOKEN_MAP: BooleanArray = booleanArrayOf(
     false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,

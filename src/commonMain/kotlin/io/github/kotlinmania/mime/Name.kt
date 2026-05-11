@@ -1,4 +1,4 @@
-// port-lint: source src/lib.rs
+// port-lint: source lib.rs
 package io.github.kotlinmania.mime
 
 /**
@@ -9,6 +9,14 @@ package io.github.kotlinmania.mime
  *
  * In most cases, [Name]s are compared ignoring case.
  */
+// Future optimization for Name (see the `source` field below): optimize with
+// an Atom-like thing. There a `val` Names, and so it is possible for the
+// statis strings to havea different memory address. Additionally, when used
+// in when expressions, the strings are compared with a byte-wise comparison,
+// possibly even if the address and length are the same.
+//
+// Being an enum with an Atom variant that is an Int (and without a string
+// pointer and boolean) would allow for faster comparisons.
 class Name internal constructor(
     internal val source: String,
     internal val insensitive: Boolean,
@@ -16,6 +24,10 @@ class Name internal constructor(
 
     /**
      * Get the value of this [Name] as a string.
+     *
+     * Note that the borrow is not tied to `this` but the underlying string,
+     * allowing the string to outlive [Name]. Alternately, there is a
+     * `Name.toString()` override that returns the source string directly.
      */
     fun asStr(): String = source
 
@@ -36,8 +48,7 @@ class Name internal constructor(
     override fun compareTo(other: Name): Int = source.compareTo(other.source)
 }
 
+// Name ============
+
 internal fun nameEqStr(name: Name, s: String): Boolean =
     if (name.insensitive) eqAscii(name.source, s) else name.source == s
-
-infix fun Name.equalsString(other: String): Boolean = nameEqStr(this, other)
-infix fun String.equalsName(other: Name): Boolean = nameEqStr(other, this)

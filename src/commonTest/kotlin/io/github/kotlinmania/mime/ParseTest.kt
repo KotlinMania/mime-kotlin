@@ -1,4 +1,4 @@
-// port-lint: source src/parse.rs
+// port-lint: source parse.rs
 package io.github.kotlinmania.mime
 
 import kotlin.test.Test

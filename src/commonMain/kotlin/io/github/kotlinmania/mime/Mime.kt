@@ -1,5 +1,30 @@
-// port-lint: source src/lib.rs
+// port-lint: source lib.rs
 package io.github.kotlinmania.mime
+
+// # Mime
+//
+// Mime is now Media Type, technically, but `Mime` is more immediately
+// understandable, so the main type here is `Mime`.
+//
+// ## What is Mime?
+//
+// Example mime string: `text/plain`
+//
+// ```
+// val plainText: Mime = fromStr("text/plain")
+// assertEquals(plainText, TEXT_PLAIN)
+// ```
+//
+// ## Inspecting Mimes
+//
+// ```
+// val mime = TEXT_PLAIN
+// when {
+//     mime.type_() == TEXT && mime.subtype() == PLAIN -> println("plain text!")
+//     mime.type_() == TEXT -> println("structured text")
+//     else -> println("not text")
+// }
+// ```
 
 /**
  * A parsed mime or media type.
@@ -13,6 +38,14 @@ class Mime internal constructor(
 
     /**
      * Get the top level media type for this [Mime].
+     *
+     * # Example
+     *
+     * ```
+     * val mime = TEXT_PLAIN
+     * assertEquals(mime.type_(), "text")
+     * assertEquals(mime.type_(), TEXT)
+     * ```
      */
     fun type_(): Name = Name(
         source = source.asRef().substring(0, slash),
@@ -21,6 +54,14 @@ class Mime internal constructor(
 
     /**
      * Get the subtype of this [Mime].
+     *
+     * # Example
+     *
+     * ```
+     * val mime = TEXT_PLAIN
+     * assertEquals(mime.subtype(), "plain")
+     * assertEquals(mime.subtype(), PLAIN)
+     * ```
      */
     fun subtype(): Name {
         val end = plus ?: (semicolon() ?: source.asRef().length)
@@ -31,7 +72,18 @@ class Mime internal constructor(
     }
 
     /**
-     * Get an optional `+suffix` for this [Mime].
+     * Get an optional +suffix for this [Mime].
+     *
+     * # Example
+     *
+     * ```
+     * val svg = fromStr("image/svg+xml")
+     * assertEquals(svg.suffix(), XML)
+     * assertEquals(svg.suffix()!!, "xml")
+     *
+     *
+     * assertTrue(TEXT_PLAIN.suffix() == null)
+     * ```
      */
     fun suffix(): Name? {
         val end = semicolon() ?: source.asRef().length
@@ -45,6 +97,18 @@ class Mime internal constructor(
 
     /**
      * Look up a parameter by name.
+     *
+     * # Example
+     *
+     * ```
+     * val mime = TEXT_PLAIN_UTF_8
+     * assertEquals(mime.getParam(CHARSET), UTF_8)
+     * assertEquals(mime.getParam("charset")!!, "utf-8")
+     * assertTrue(mime.getParam("boundary") == null)
+     *
+     * val mime2 = fromStr("multipart/form-data; boundary=ABCDEFG")
+     * assertEquals(mime2.getParam(BOUNDARY)!!, "ABCDEFG")
+     * ```
      */
     fun getParam(attr: Name): Name? = params().asSequence().firstOrNull { attr == it.first }?.second
 
@@ -66,7 +130,9 @@ class Mime internal constructor(
     }
 
     /**
-     * Return the [Mime]'s essence string.
+     * Return a `String` of the [Mime]'s ["essence"][essence].
+     *
+     * [essence]: https://mimesniff.spec.whatwg.org/#mime-type-essence
      */
     fun essenceStr(): String {
         val end = semicolon() ?: source.asRef().length
@@ -88,6 +154,11 @@ class Mime internal constructor(
 
     fun asStr(): String = source.asRef()
 
+    // Future optimization for the Mime equals override below:
+    // This could optimize for when there are no customs parameters.
+    // Any parsed mime has already been lowercased, so if there aren't
+    // any parameters that are case sensistive, this can skip the
+    // eqAscii, and just use a byte-wise comparison instead.
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         return when (other) {
