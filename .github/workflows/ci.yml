@@ -77,10 +77,10 @@ jobs:
           npm --version
           yarn --version
 
-      - name: Initialize CodeQL
+      - name: Initialize CodeQL (java-kotlin)
         uses: github/codeql-action/init@v4
         with:
-          languages: java-kotlin, javascript-typescript, actions
+          languages: java-kotlin
           build-mode: manual
 
       - name: Build and test Linux, Android, JS, and WASM targets
@@ -99,8 +99,34 @@ jobs:
           wasmJsNodeTest
           --no-configuration-cache
 
-      - name: Perform CodeQL Analysis
+      - name: Perform CodeQL Analysis (java-kotlin)
         uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:java-kotlin"
+
+  codeql-source-only:
+    name: CodeQL (JS/TS + Actions)
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Initialize CodeQL (source-only languages)
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript, actions
+          build-mode: none
+
+      - name: Perform CodeQL Analysis (source-only)
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript-actions"
 
   build-windows:
     name: Build and Test (Windows)
