@@ -83,39 +83,42 @@ jobs:
           languages: java-kotlin
           build-mode: manual
 
-      # Stop any daemon warmed by gradle/actions/setup-gradle before CodeQL
-      # init exported LD_PRELOAD. A pre-existing daemon's child JVMs (including
-      # the JavaExec subprocess that runs codeqlCompileJvm's kotlinc) inherit
-      # the daemon's stale env and never see the tracer.
-      - name: Stop pre-existing Gradle daemon
-        run: ./gradlew --stop || true
-
-      # codeqlCompileJvm runs kotlinc 2.3.20 against commonMain. The mainline
-      # workspace is on Kotlin 2.3.21 whose multiplatform compile dispatches
-      # through the new K2 phased pipeline that the CodeQL Java agent does
-      # not yet hook. 2.3.20 still routes through K2JVMCompiler.doExecute
-      # which the agent instruments at class load time, so the in-process
-      # compile produces real Kotlin TRAP.
+      # Build + CodeQL extraction
       #
-      # --no-daemon: force a fresh single-use daemon JVM that inherits
-      # LD_PRELOAD from this step's shell, so its JavaExec subprocess (the
-      # kotlinc that codeqlCompileJvm forks) inherits it too.
+      # The CodeQL Java agent is attached to every JVM in this step via
+      # JAVA_TOOL_OPTIONS, including the gradle daemon and the JavaExec
+      # subprocess that runs codeqlCompileJvm's kotlinc. The agent spec
+      # `java,kotlin` registers both extractors. This bypasses the
+      # LD_PRELOAD tracer mechanism entirely — every JVM the env var
+      # touches loads `codeql-java-agent.jar` directly, regardless of
+      # daemon reuse or env-propagation gaps between parent and child
+      # processes. Pure JVM contract: -javaagent is honored at JVM
+      # startup independently of any OS-level tracing.
+      #
+      # codeqlCompileJvm runs kotlinc 2.3.20 against commonMain because
+      # the workspace's mainline Kotlin 2.3.21 routes JVM multiplatform
+      # compilation through the K2 phased pipeline that the agent does
+      # not yet hook. 2.3.20 still dispatches through
+      # K2JVMCompiler.doExecute, which is what the agent's
+      # KotlinInterceptor instruments at class load time.
       - name: Build and test Linux, Android, JS, and WASM targets (+ CodeQL extraction)
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
-        run: >
-          ./gradlew
-          --no-daemon
-          codeqlCompileJvm
-          compileAndroidMain
-          assembleUnitTest
-          assembleAndroidTest
-          jsBrowserTest
-          jsNodeTest
-          linuxX64Test
-          wasmJsBrowserTest
-          wasmJsNodeTest
-          --no-configuration-cache
+        run: |
+          export JAVA_TOOL_OPTIONS="-javaagent:${CODEQL_EXTRACTOR_JAVA_ROOT}/tools/codeql-java-agent.jar=java,kotlin"
+          echo "JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}"
+          ./gradlew \
+            --no-daemon \
+            codeqlCompileJvm \
+            compileAndroidMain \
+            assembleUnitTest \
+            assembleAndroidTest \
+            jsBrowserTest \
+            jsNodeTest \
+            linuxX64Test \
+            wasmJsBrowserTest \
+            wasmJsNodeTest \
+            --no-configuration-cache
 
       # Analyze runs even if the gradle test step failed: the CodeQL extractor
       # ran during codeqlCompileJvm (which comes first in the task list) and the
