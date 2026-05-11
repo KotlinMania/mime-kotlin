@@ -120,6 +120,35 @@ jobs:
             wasmJsNodeTest \
             --no-configuration-cache
 
+      # Diagnostic: confirm the Kotlin extractor actually ran. If this step
+      # finds no kotlin-extractor.*.log and no *.kt.trap.gz under the trap
+      # dir, extraction was fake-green and we should not trust the analyze
+      # results.
+      - name: CodeQL extractor diagnostic
+        if: ${{ !cancelled() }}
+        run: |
+          echo "=== Java extractor log dir ==="
+          ls -la "${CODEQL_EXTRACTOR_JAVA_LOG_DIR}" 2>/dev/null || echo "(missing)"
+          echo
+          echo "=== agent.*.log (first 3 lines each) ==="
+          for f in "${CODEQL_EXTRACTOR_JAVA_LOG_DIR}"/agent.*.log; do
+            [ -e "$f" ] || continue
+            echo "--- $(basename "$f") ---"
+            head -3 "$f"
+          done
+          echo
+          echo "=== kotlin-extractor.*.log (first 30 lines each) ==="
+          for f in "${CODEQL_EXTRACTOR_JAVA_LOG_DIR}"/kotlin-extractor.*.log; do
+            [ -e "$f" ] || { echo "(no kotlin-extractor logs — agent did not fire)"; break; }
+            echo "--- $(basename "$f") ---"
+            head -30 "$f"
+          done
+          echo
+          echo "=== per-file *.kt.trap.gz count ==="
+          find "${CODEQL_EXTRACTOR_JAVA_TRAP_DIR}" -name '*.kt.trap.gz' 2>/dev/null | wc -l
+          echo "=== source archive .kt count ==="
+          find "${CODEQL_EXTRACTOR_JAVA_SOURCE_ARCHIVE_DIR}" -name '*.kt' 2>/dev/null | wc -l
+
       # Analyze runs even if the gradle test step failed: the CodeQL extractor
       # ran during codeqlCompileJvm (which comes first in the task list) and the
       # database is populated before any test task can fail.

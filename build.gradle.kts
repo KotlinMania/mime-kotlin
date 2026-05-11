@@ -214,28 +214,29 @@ mavenPublishing {
 // ---------------------------------------------------------------------------
 // CodeQL Java/Kotlin extraction task
 //
-// The Kotlin Multiplatform build above runs on Kotlin 2.3.21. In 2.3.21, the
-// JVM compilation pipeline for multiplatform fragments (`-Xmulti-platform
-// -Xfragments=…`) routes through `org.jetbrains.kotlin.cli.pipeline.JvmCliPipeline`
-// rather than `org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecute`. CodeQL's
-// Java agent (codeql-java-agent.jar v2.25.4) hooks `K2JVMCompiler.doExecute`
-// for Kotlin extraction, so a 2.3.21 multiplatform JVM compile produces zero
-// Kotlin TRAP. Empirically verified by inspecting the agent diagnostic log
-// (`agent.kotlin-extractor.*.log` reports "Previously parsed compiler arguments
-// haven't been used in a compilation").
+// The Kotlin Multiplatform build above runs on Kotlin 2.3.21. The K2 phased
+// compilation pipeline (`org.jetbrains.kotlin.cli.pipeline.JvmCliPipeline`)
+// is engaged whenever `-Xmulti-platform`/`-Xfragments=…` are in the kotlinc
+// args — that's KGP's standard multiplatform compileKotlinJvm shape. The
+// CodeQL Java agent (`codeql-java-agent.jar` v2.25.4) hooks
+// `K2JVMCompiler.doExecute(…)`, which the new pipeline bypasses, so an
+// agent-instrumented KMP compileKotlinJvm produces zero Kotlin TRAP.
 //
-// Workaround: run a separate non-multiplatform compile of commonMain sources
-// with Kotlin 2.3.20 kotlinc against the same dependency set. 2.3.20 still
-// dispatches through the legacy `K2JVMCompiler.doExecute` path, and CodeQL's
-// agent hooks the embeddable JAR at class-load time so the in-process compile
-// is fully instrumented. Verified locally: 31 Kotlin classes extracted with
-// per-source-file `*.kt.trap.gz` files and source archive populated.
+// Fix: run a separate single-target JVM compile of commonMain sources via
+// JavaExec with NO multiplatform flags. Without `-Xmulti-platform` /
+// `-Xfragments=…` in the args, kotlinc 2.3.21 still dispatches through the
+// legacy `K2JVMCompiler.doExecute` path, the agent's class-load hook fires,
+// and per-source-file `*.kt.trap.gz` files get written.
+//
+// The agent is attached via `JAVA_TOOL_OPTIONS=-javaagent:codeql-java-agent.jar=java,kotlin`
+// (set by the CI step around this task), so the JavaExec subprocess loads it
+// at JVM startup independently of any LD_PRELOAD propagation chain.
 //
 // This task is for CodeQL extraction only. The output `.class` files are not
 // published and are not part of any KMP target.
 
 val codeqlKotlinc: Configuration by configurations.creating {
-    description = "Kotlin 2.3.20 compiler (CodeQL extraction target only — not published)"
+    description = "Kotlin compiler (CodeQL extraction target only — not published)"
     isCanBeResolved = true
     isCanBeConsumed = false
 }
@@ -247,11 +248,11 @@ val codeqlSourceClasspath: Configuration by configurations.creating {
 }
 
 dependencies {
-    codeqlKotlinc("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.3.20")
+    codeqlKotlinc("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.3.21")
     // Mirror the commonMain dependency set, pinned to the JVM artifact variant
     // since the JVM-flavoured kotlinx packages publish multiplatform metadata
     // that requires a target attribute to resolve.
-    codeqlSourceClasspath("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
+    codeqlSourceClasspath("org.jetbrains.kotlin:kotlin-stdlib:2.3.21")
     codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2")
     codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.11.0")
     codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.11.0")
