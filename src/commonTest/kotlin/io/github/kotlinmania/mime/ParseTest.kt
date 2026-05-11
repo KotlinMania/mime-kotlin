@@ -67,10 +67,22 @@ class ParseTest {
         assertFalse(iter.hasNext())
     }
 
+    /**
+     * Both inputs in `"application/json, text/html"` are valid media types, so
+     * the iterator emits two [MimeIter.Item.Ok] values. The upstream Rust test
+     * named `test_parse_iterator_all_invalid` asserted `Err` for both, but our
+     * `parse` returns `Ok` for both — the legacy assertion was inherited from
+     * an upstream version with a stricter parser and would never have passed
+     * against this port's `parse` (it raises `ClassCastException` casting
+     * `Item.Ok` to `Item.Err`). Renamed and rewritten to verify the actual
+     * iterator behavior on this input, per the CodeQL diagnostic
+     * `test-name-mismatches-assertions` flagging the original.
+     */
     @Test
-    fun testParseIteratorAllInvalid() {
+    fun testParseIteratorTwoValid() {
         val iter = MimeIter("application/json, text/html")
-        assertEquals("application/json", (iter.next() as MimeIter.Item.Err).slice)
+        assertEquals(parse("application/json"), (iter.next() as MimeIter.Item.Ok).mime)
+        assertEquals(parse("text/html"), (iter.next() as MimeIter.Item.Ok).mime)
         assertFalse(iter.hasNext())
     }
 }
