@@ -27,18 +27,37 @@ permissions:
 # trust escalation since GitHub Actions runs the workflow file from the
 # branch being pushed to.
 
+# Each `uses:` job below declares its own `permissions:` block. For a job
+# that calls a reusable workflow, the permissions value sets a CEILING on
+# what the called workflow can have — so `{}` (empty) would deny the
+# called workflow's own `contents: read` declaration and break checkout.
+# `contents: read` matches what each called workflow needs.
 jobs:
   ios:
     uses: ./.github/workflows/ios.yml
+    permissions:
+      contents: read
   macos:
     uses: ./.github/workflows/macos.yml
+    permissions:
+      contents: read
   android:
     uses: ./.github/workflows/android.yml
+    permissions:
+      contents: read
   linux:
     uses: ./.github/workflows/linux.yml
+    permissions:
+      contents: read
   js:
     uses: ./.github/workflows/js.yml
+    permissions:
+      contents: read
   wasm:
     uses: ./.github/workflows/wasm.yml
+    permissions:
+      contents: read
   windows:
     uses: ./.github/workflows/windows.yml
+    permissions:
+      contents: read
