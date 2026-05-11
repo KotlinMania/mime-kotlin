@@ -20,8 +20,8 @@ package io.github.kotlinmania.mime
 // ```
 // val mime = TEXT_PLAIN
 // when {
-//     mime.type_() == TEXT && mime.subtype() == PLAIN -> println("plain text!")
-//     mime.type_() == TEXT -> println("structured text")
+//     mime.type() == TEXT && mime.subtype() == PLAIN -> println("plain text!")
+//     mime.type() == TEXT -> println("structured text")
 //     else -> println("not text")
 // }
 // ```
@@ -43,11 +43,11 @@ class Mime internal constructor(
      *
      * ```
      * val mime = TEXT_PLAIN
-     * assertEquals(mime.type_(), "text")
-     * assertEquals(mime.type_(), TEXT)
+     * assertEquals(mime.type(), "text")
+     * assertEquals(mime.type(), TEXT)
      * ```
      */
-    fun type_(): Name = Name(
+    fun type(): Name = Name(
         source = source.asRef().substring(0, slash),
         insensitive = true,
     )

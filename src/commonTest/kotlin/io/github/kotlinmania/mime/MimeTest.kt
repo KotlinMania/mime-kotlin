@@ -98,8 +98,8 @@ class MimeTest {
     }
 
     @Test
-    fun testType_() {
-        assertEquals(TEXT, TEXT_PLAIN.type_())
+    fun testType() {
+        assertEquals(TEXT, TEXT_PLAIN.type())
     }
 
     @Test
@@ -112,7 +112,7 @@ class MimeTest {
 
     @Test
     fun testMatching() {
-        val t = TEXT_PLAIN.type_()
+        val t = TEXT_PLAIN.type()
         val s = TEXT_PLAIN.subtype()
         assertTrue(t == TEXT && s == PLAIN)
     }
@@ -148,7 +148,7 @@ class MimeTest {
 
         val upper = fromStr("TEXT/PLAIN")
         assertEquals(TEXT_PLAIN, upper)
-        assertEquals(TEXT, upper.type_())
+        assertEquals(TEXT, upper.type())
         assertEquals(PLAIN, upper.subtype())
 
         val extended = fromStr("TEXT/PLAIN; CHARSET=UTF-8; FOO=BAR")
@@ -184,7 +184,7 @@ class MimeTest {
         for (case in cases) {
             val mime = fromStr(case)
             assertEquals(TEXT_EVENT_STREAM, mime, "case = \"$case\"")
-            assertEquals(TEXT, mime.type_(), "case = \"$case\"")
+            assertEquals(TEXT, mime.type(), "case = \"$case\"")
             assertEquals(EVENT_STREAM, mime.subtype(), "case = \"$case\"")
             assertFalse(mime.hasParams(), "case = \"$case\"")
         }

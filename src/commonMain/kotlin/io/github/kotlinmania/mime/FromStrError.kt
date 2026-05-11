@@ -10,4 +10,7 @@ class FromStrError internal constructor(internal val inner: ParseError) :
     internal fun s(): String = "mime parse error"
 
     override fun toString(): String = "${s()}: $inner"
+
+    /** Minimum Rust is 1.15, Error::description was still required then */
+    fun description(): String = s()
 }
