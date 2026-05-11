@@ -36,12 +36,20 @@ jobs:
           --no-configuration-cache
 
   build-linux:
-    name: Build and Test (Linux / Android / JS / WASM)
+    name: Build and Test (Linux / Android / JS / WASM) + CodeQL
     runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5.2.0
@@ -69,11 +77,18 @@ jobs:
           npm --version
           yarn --version
 
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin, javascript-typescript, actions
+          build-mode: manual
+
       - name: Build and test Linux, Android, JS, and WASM targets
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
         run: >
           ./gradlew
+          compileKotlinJvm
           compileAndroidMain
           assembleUnitTest
           assembleAndroidTest
@@ -83,6 +98,9 @@ jobs:
           wasmJsBrowserTest
           wasmJsNodeTest
           --no-configuration-cache
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
 
   build-windows:
     name: Build and Test (Windows)
