@@ -211,6 +211,88 @@ mavenPublishing {
     }
 }
 
+// ---------------------------------------------------------------------------
+// CodeQL Java/Kotlin extraction task
+//
+// The Kotlin Multiplatform build above runs on Kotlin 2.3.21. In 2.3.21, the
+// JVM compilation pipeline for multiplatform fragments (`-Xmulti-platform
+// -Xfragments=…`) routes through `org.jetbrains.kotlin.cli.pipeline.JvmCliPipeline`
+// rather than `org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecute`. CodeQL's
+// Java agent (codeql-java-agent.jar v2.25.4) hooks `K2JVMCompiler.doExecute`
+// for Kotlin extraction, so a 2.3.21 multiplatform JVM compile produces zero
+// Kotlin TRAP. Empirically verified by inspecting the agent diagnostic log
+// (`agent.kotlin-extractor.*.log` reports "Previously parsed compiler arguments
+// haven't been used in a compilation").
+//
+// Workaround: run a separate non-multiplatform compile of commonMain sources
+// with Kotlin 2.3.20 kotlinc against the same dependency set. 2.3.20 still
+// dispatches through the legacy `K2JVMCompiler.doExecute` path, and CodeQL's
+// agent hooks the embeddable JAR at class-load time so the in-process compile
+// is fully instrumented. Verified locally: 31 Kotlin classes extracted with
+// per-source-file `*.kt.trap.gz` files and source archive populated.
+//
+// This task is for CodeQL extraction only. The output `.class` files are not
+// published and are not part of any KMP target.
+
+val codeqlKotlinc: Configuration by configurations.creating {
+    description = "Kotlin 2.3.20 compiler (CodeQL extraction target only — not published)"
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
+val codeqlSourceClasspath: Configuration by configurations.creating {
+    description = "Runtime classpath for CodeQL extraction of commonMain sources"
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
+dependencies {
+    codeqlKotlinc("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.3.20")
+    // Mirror the commonMain dependency set, pinned to the JVM artifact variant
+    // since the JVM-flavoured kotlinx packages publish multiplatform metadata
+    // that requires a target attribute to resolve.
+    codeqlSourceClasspath("org.jetbrains.kotlin:kotlin-stdlib:2.3.20")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.11.0")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.11.0")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.7.1")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.4.0")
+}
+
+val codeqlCompileJvm = tasks.register<JavaExec>("codeqlCompileJvm") {
+    description =
+        "Compile commonMain Kotlin sources with kotlinc 2.3.20 for CodeQL Java/Kotlin extraction. " +
+        "Not part of any published artifact; intended to be wrapped by `codeql database create` " +
+        "or `github/codeql-action/init` so the LD_PRELOAD tracer can attach the extractor agent " +
+        "to the in-process kotlinc."
+    group = "verification"
+
+    classpath(codeqlKotlinc)
+    mainClass.set("org.jetbrains.kotlin.cli.jvm.K2JVMCompiler")
+
+    val outDir = layout.buildDirectory.dir("classes/kotlin/codeql-jvm")
+    val sources = fileTree("src/commonMain/kotlin") { include("**/*.kt") }
+    inputs.files(sources).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(codeqlSourceClasspath).withNormalizer(ClasspathNormalizer::class.java)
+    outputs.dir(outDir)
+
+    doFirst {
+        outDir.get().asFile.mkdirs()
+        args = listOf(
+            "-d", outDir.get().asFile.absolutePath,
+            "-classpath", codeqlSourceClasspath.asPath,
+            "-jvm-target", "21",
+            "-no-stdlib", // stdlib comes via the classpath
+            "-no-reflect",
+            "-language-version", "2.3",
+            "-api-version", "2.3",
+            "-opt-in", "kotlin.time.ExperimentalTime",
+            "-opt-in", "kotlin.concurrent.atomics.ExperimentalAtomicApi",
+            "-Xexpect-actual-classes",
+        ) + sources.files.map { it.absolutePath }
+    }
+}
+
 tasks.register("test") {
     group = "verification"
     description =

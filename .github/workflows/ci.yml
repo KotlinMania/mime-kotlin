@@ -36,12 +36,20 @@ jobs:
           --no-configuration-cache
 
   build-linux:
-    name: Build and Test (Linux / Android / JS / WASM)
+    name: Build and Test (Linux / Android / JS / WASM) + CodeQL
     runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5.2.0
@@ -69,11 +77,24 @@ jobs:
           npm --version
           yarn --version
 
-      - name: Build and test Linux, Android, JS, and WASM targets
+      - name: Initialize CodeQL (java-kotlin)
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin
+          build-mode: manual
+
+      # codeqlCompileJvm runs kotlinc 2.3.20 against commonMain. The mainline
+      # workspace is on Kotlin 2.3.21 whose multiplatform compile dispatches
+      # through the new K2 phased pipeline that the CodeQL Java agent does
+      # not yet hook. 2.3.20 still routes through K2JVMCompiler.doExecute
+      # which the agent instruments at class load time, so the in-process
+      # compile produces real Kotlin TRAP.
+      - name: Build and test Linux, Android, JS, and WASM targets (+ CodeQL extraction)
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
         run: >
           ./gradlew
+          codeqlCompileJvm
           compileAndroidMain
           assembleUnitTest
           assembleAndroidTest
@@ -83,6 +104,39 @@ jobs:
           wasmJsBrowserTest
           wasmJsNodeTest
           --no-configuration-cache
+
+      # Analyze runs even if the gradle test step failed: the CodeQL extractor
+      # ran during codeqlCompileJvm (which comes first in the task list) and the
+      # database is populated before any test task can fail.
+      - name: Perform CodeQL Analysis (java-kotlin)
+        if: ${{ !cancelled() }}
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:java-kotlin"
+
+  codeql-source-only:
+    name: CodeQL (JS/TS + Actions)
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Initialize CodeQL (source-only languages)
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript, actions
+          build-mode: none
+
+      - name: Perform CodeQL Analysis (source-only)
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript-actions"
 
   build-windows:
     name: Build and Test (Windows)
