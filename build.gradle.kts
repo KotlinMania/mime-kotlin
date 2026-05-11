@@ -186,6 +186,9 @@ mavenPublishing {
                 name.set("Sydney Renee")
                 email.set("sydney@solace.ofharmony.ai")
                 url.set("https://github.com/sydneyrenee")
+                organization.set("The Solace Project")
+                organizationUrl.set("https://github.com/KotlinMania")
+                roles.set(listOf("maintainer", "kotlin-port-author"))
             }
         }
 
