@@ -64,10 +64,21 @@ kotlin {
             xcf.add(this)
         }
     }
+    // Single `js` target with both browser() and nodejs() runtime configurations.
+    // The asymmetric `js("jsBrowser")` + `js("jsNode")` split that the workspace
+    // template once prescribed cannot satisfy Gradle 9.x's "unique attribute
+    // sets" rule: the two targets emit `jsBrowserApiElements` and
+    // `jsNodeApiElements` consumable configurations that share an identical
+    // attribute set, and the configuration of the `:compileAndroidHostTest`
+    // task fails with "Consumable configurations with identical capabilities …
+    // must have unique attributes". Since this port has no Node-only `actual`
+    // (the upstream `mime` crate is pure parsing — no fs, no process), the
+    // single-target layout is also adequate at the source level.
     js {
         browser()
         nodejs()
     }
+
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
@@ -186,6 +197,9 @@ mavenPublishing {
                 name.set("Sydney Renee")
                 email.set("sydney@solace.ofharmony.ai")
                 url.set("https://github.com/sydneyrenee")
+                organization.set("The Solace Project")
+                organizationUrl.set("https://github.com/KotlinMania")
+                roles.set(listOf("maintainer", "kotlin-port-author"))
             }
         }
 
@@ -197,15 +211,101 @@ mavenPublishing {
     }
 }
 
+// ---------------------------------------------------------------------------
+// CodeQL Java/Kotlin extraction task
+//
+// The Kotlin Multiplatform build above runs on Kotlin 2.3.21. The K2 phased
+// compilation pipeline (`org.jetbrains.kotlin.cli.pipeline.JvmCliPipeline`)
+// is engaged whenever `-Xmulti-platform`/`-Xfragments=…` are in the kotlinc
+// args — that's KGP's standard multiplatform compileKotlinJvm shape. The
+// CodeQL Java agent (`codeql-java-agent.jar` v2.25.4) hooks
+// `K2JVMCompiler.doExecute(…)`, which the new pipeline bypasses, so an
+// agent-instrumented KMP compileKotlinJvm produces zero Kotlin TRAP.
+//
+// Fix: run a separate single-target JVM compile of commonMain sources via
+// JavaExec with NO multiplatform flags. Without `-Xmulti-platform` /
+// `-Xfragments=…` in the args, kotlinc 2.3.21 still dispatches through the
+// legacy `K2JVMCompiler.doExecute` path, the agent's class-load hook fires,
+// and per-source-file `*.kt.trap.gz` files get written.
+//
+// The agent is attached via `JAVA_TOOL_OPTIONS=-javaagent:codeql-java-agent.jar=java,kotlin`
+// (set by the CI step around this task), so the JavaExec subprocess loads it
+// at JVM startup independently of any LD_PRELOAD propagation chain.
+//
+// This task is for CodeQL extraction only. The output `.class` files are not
+// published and are not part of any KMP target.
+
+val codeqlKotlinc: Configuration by configurations.creating {
+    description = "Kotlin compiler (CodeQL extraction target only — not published)"
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
+val codeqlSourceClasspath: Configuration by configurations.creating {
+    description = "Runtime classpath for CodeQL extraction of commonMain sources"
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
+dependencies {
+    codeqlKotlinc("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.3.21")
+    // Mirror the commonMain dependency set, pinned to the JVM artifact variant
+    // since the JVM-flavoured kotlinx packages publish multiplatform metadata
+    // that requires a target attribute to resolve.
+    codeqlSourceClasspath("org.jetbrains.kotlin:kotlin-stdlib:2.3.21")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.11.0")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:1.11.0")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.7.1")
+    codeqlSourceClasspath("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm:0.4.0")
+}
+
+val codeqlCompileJvm = tasks.register<JavaExec>("codeqlCompileJvm") {
+    description =
+        "Compile commonMain Kotlin sources with kotlinc 2.3.20 for CodeQL Java/Kotlin extraction. " +
+        "Not part of any published artifact; intended to be wrapped by `codeql database create` " +
+        "or `github/codeql-action/init` so the LD_PRELOAD tracer can attach the extractor agent " +
+        "to the in-process kotlinc."
+    group = "verification"
+
+    classpath(codeqlKotlinc)
+    mainClass.set("org.jetbrains.kotlin.cli.jvm.K2JVMCompiler")
+
+    val outDir = layout.buildDirectory.dir("classes/kotlin/codeql-jvm")
+    val sources = fileTree("src/commonMain/kotlin") { include("**/*.kt") }
+    inputs.files(sources).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(codeqlSourceClasspath).withNormalizer(ClasspathNormalizer::class.java)
+    outputs.dir(outDir)
+
+    doFirst {
+        outDir.get().asFile.mkdirs()
+        args = listOf(
+            "-d", outDir.get().asFile.absolutePath,
+            "-classpath", codeqlSourceClasspath.asPath,
+            "-jvm-target", "21",
+            "-no-stdlib", // stdlib comes via the classpath
+            "-no-reflect",
+            "-language-version", "2.3",
+            "-api-version", "2.3",
+            "-opt-in", "kotlin.time.ExperimentalTime",
+            "-opt-in", "kotlin.concurrent.atomics.ExperimentalAtomicApi",
+            "-Xexpect-actual-classes",
+        ) + sources.files.map { it.absolutePath }
+    }
+}
+
 tasks.register("test") {
     group = "verification"
     description =
-        "Runs a portable test suite (macOS + JS + WasmJS). Android and non-host native targets are intentionally excluded."
+        "Runs the host-portable test suite (macOS + JS + WasmJS + Android unit). " +
+        "Non-host native targets (mingwX64, linuxX64) only run on their own host."
 
     val defaultTestTasks = listOf(
         "macosArm64Test",
         "jsNodeTest",
         "wasmJsNodeTest",
+        "compileAndroidMain",
+        "assembleUnitTest",
     )
 
     dependsOn(defaultTestTasks.mapNotNull { taskName -> tasks.findByName(taskName) })

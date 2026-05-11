@@ -6,6 +6,20 @@ on:
   pull_request:
     branches: [main, master]
 
+# Each job below does exactly one thing the name claims, no more.
+#
+# Build/test jobs build and test on their respective host. They do not run
+# CodeQL. A test failure does NOT mark CodeQL red.
+#
+# CodeQL jobs run CodeQL extraction + analyse for one language family. They
+# do not run the host test matrix. A test failure on Linux does NOT mark
+# CodeQL red, and CodeQL extraction failing does NOT mark the build red.
+#
+# This split exists because the previous combined "Build and Test … +
+# CodeQL" job masked a real broken-CodeQL state behind test-pass status,
+# and (when the tests later failed) masked a working CodeQL behind the
+# test-fail status. Each job reports on one concern.
+
 jobs:
   build-macos-arm64:
     name: Build and Test (macOS arm64 / iOS simulator arm64 / Swift)
@@ -42,6 +56,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5.2.0
@@ -103,3 +120,83 @@ jobs:
 
       - name: Build and test Windows target
         run: ./gradlew mingwX64Test --no-configuration-cache
+
+  codeql-java-kotlin:
+    name: CodeQL (java-kotlin)
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5.2.0
+        with:
+          distribution: zulu
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.1.0
+
+      - name: Initialize CodeQL (java-kotlin)
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java-kotlin
+          build-mode: manual
+
+      # The Kotlin extractor agent is attached to every JVM in this step via
+      # JAVA_TOOL_OPTIONS=-javaagent:codeql-java-agent.jar=java,kotlin. This
+      # is the JVM-spec attachment mechanism — every conforming JVM honors
+      # it at startup independently of any OS-level LD_PRELOAD tracing chain.
+      # The gradle daemon and the JavaExec subprocess that runs
+      # codeqlCompileJvm's kotlinc both load the agent. The `java,kotlin`
+      # spec registers both JavacMainInterceptor and KotlinInterceptor; the
+      # latter hooks `K2JVMCompiler.doExecute(...)` at class load time and
+      # writes per-source-file `*.kt.trap.gz` outputs under
+      # ${CODEQL_EXTRACTOR_JAVA_TRAP_DIR}.
+      #
+      # codeqlCompileJvm runs kotlinc against commonMain as a single-target
+      # JVM compile (no -Xmulti-platform, no -Xfragments). The K2 phased
+      # compilation pipeline that the agent does NOT hook is only engaged
+      # for multiplatform-fragment compiles; a single-target invocation
+      # still dispatches through K2JVMCompiler.doExecute on the same Kotlin
+      # 2.3.21 compiler the workspace uses everywhere else.
+      - name: Extract Kotlin via CodeQL agent
+        run: |
+          export JAVA_TOOL_OPTIONS="-javaagent:${CODEQL_EXTRACTOR_JAVA_ROOT}/tools/codeql-java-agent.jar=java,kotlin"
+          echo "JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}"
+          ./gradlew --no-daemon codeqlCompileJvm --no-configuration-cache
+
+      - name: Perform CodeQL Analysis (java-kotlin)
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:java-kotlin"
+
+  codeql-source-only:
+    name: CodeQL (JS/TS + Actions)
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Initialize CodeQL (source-only languages)
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript, actions
+          build-mode: none
+
+      - name: Perform CodeQL Analysis (source-only)
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript-actions"
