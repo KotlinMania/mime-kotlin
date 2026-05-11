@@ -83,6 +83,15 @@ jobs:
           languages: java-kotlin
           build-mode: manual
 
+      # Force the Gradle daemon to stop before the build so CodeQL's
+      # LD_PRELOAD propagates into the fresh JVM. gradle/actions/setup-gradle
+      # warms a daemon during its setup step, which runs BEFORE CodeQL init
+      # — that pre-existing daemon will fork kotlinc without inheriting the
+      # tracer environment. Stopping it forces the next invocation to start
+      # a new daemon under LD_PRELOAD.
+      - name: Stop pre-existing Gradle daemon
+        run: ./gradlew --stop || true
+
       - name: Build and test Linux, Android, JS, and WASM targets
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
@@ -94,8 +103,12 @@ jobs:
         # KGP prints a deprecation warning for out-of-process compilation —
         # accepted noise; the warning is in fact direct confirmation that
         # this is the path that bypasses the Build Tools API.
+        #
+        # --no-daemon defeats daemon reuse so the JVM running the build
+        # inherits the LD_PRELOAD env CodeQL init exported.
         run: >
           ./gradlew
+          --no-daemon
           -Pkotlin.compiler.execution.strategy=out-of-process
           compileKotlinJvm
           compileAndroidMain
