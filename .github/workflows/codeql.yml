@@ -9,6 +9,7 @@
 # the `language` matrix defined below to confirm you have the correct set of
 # supported CodeQL languages.
 #
+
 name: "CodeQL Advanced"
 
 on:
@@ -17,7 +18,14 @@ on:
   pull_request:
     branches: [ "main" ]
   schedule:
-    - cron: '24 2 * * 5'
+    - cron: '44 16 * * 0'
+    
+# Least-privilege default for any future inline job. Each CodeQL job below
+# overrides with `security-events: write` (SARIF upload) plus `actions: read`
+# (codeql-action/analyze@v4) plus `packages: read` (private CodeQL pack
+# fetches via GHCR; harmless when no private packs are configured).
+permissions:
+  contents: read
 
 jobs:
   analyze:
@@ -38,6 +46,7 @@ jobs:
       # only required for workflows in private repositories
       actions: read
       contents: read
+      packages: read
 
     strategy:
       fail-fast: false
@@ -61,43 +70,66 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Add any setup steps before running the `github/codeql-action/init` action.
-    # This includes steps like installing compilers or runtimes (`actions/setup-node`
-    # or others). This is typically only required for manual builds.
-    # - name: Setup runtime (example)
-    #   uses: actions/setup-example@v1
-
-    # Initializes the CodeQL tools for scanning.
-    - name: Initialize CodeQL
+    - name: Initialize CodeQL (java-kotlin)
       uses: github/codeql-action/init@v4
       with:
-        languages: ${{ matrix.language }}
-        build-mode: ${{ matrix.build-mode }}
-        # If you wish to specify custom queries, you can do so here or in a config file.
-        # By default, queries listed here will override any specified in a config file.
-        # Prefix the list here with "+" to use these queries and those in the config file.
+        languages: java-kotlin
+        build-mode: manual
+        # Restores+stores the CodeQL bundle and dependency cache between
+        # runs. Default off in Advanced Setup; turning on cuts ~30-60s
+        # off the init step on warm cache.
+        dependency-caching: true
 
-        # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
-        # queries: security-extended,security-and-quality
 
-    # If the analyze step fails for one of the languages you are analyzing with
-    # "We were unable to automatically build your code", modify the matrix above
-    # to set the build mode to "manual" for that language. Then modify this step
-    # to build your code.
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - name: Run manual build steps
-      if: matrix.build-mode == 'manual'
-      shell: bash
-      run: |
-        echo 'If you are using a "manual" build mode for one or more of the' \
-          'languages you are analyzing, replace this with the commands to build' \
-          'your code, for example:'
-        echo '  make bootstrap'
-        echo '  make release'
-        exit 1
+  codeql-javascript-typescript:
+    name: CodeQL (javascript-typescript)
+    runs-on: ubuntu-latest
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4
-      with:
-        category: "/language:${{matrix.language}}"
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Initialize CodeQL (javascript-typescript)
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          dependency-caching: true
+
+      - name: Perform CodeQL Analysis (javascript-typescript)
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript-typescript"
+
+  codeql-actions:
+    name: CodeQL (actions)
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Initialize CodeQL (actions)
+        uses: github/codeql-action/init@v4
+        with:
+          languages: actions
+          build-mode: none
+          dependency-caching: true
+
+      - name: Perform CodeQL Analysis (actions)
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:actions"
+
