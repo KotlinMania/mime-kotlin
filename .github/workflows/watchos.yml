@@ -34,3 +34,14 @@ jobs:
           compileKotlinWatchosSimulatorArm64
           watchosSimulatorArm64Test
           --no-configuration-cache
+
+      - name: Upload test reports (watchOS)
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-watchos
+          path: |
+            build/reports/tests/
+            build/test-results/
+          retention-days: 7
+          if-no-files-found: warn
