@@ -42,46 +42,98 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
 
+    // ---- Maximal Kotlin 2.3.21 target coverage ----
+    //
+    // Every non-JVM Kotlin target the compiler supports is declared here.
+    // `jvm()` is intentionally omitted: this workspace standardizes on
+    // strict-KMP (no JVM-only target — see threadlocal-kotlin for the one
+    // documented exception). CodeQL Kotlin extraction is handled by the
+    // dedicated `codeqlCompileJvm` JavaExec task further down this file
+    // instead of a real jvm() target, because the K2 multiplatform pipeline
+    // for `compileKotlinJvm` bypasses the legacy K2JVMCompiler.doExecute
+    // path the CodeQL Java agent hooks.
+
     val xcf = XCFramework("Mime")
 
+    // Apple desktop
     macosArm64 {
-        binaries.framework {
-            baseName = "Mime"
-            xcf.add(this)
-        }
+        binaries.framework { baseName = "Mime"; xcf.add(this) }
     }
-    linuxX64()
-    mingwX64()
+    // macosX64 was removed in Kotlin 2.3 — "Target is no longer available."
+
+    // iOS
     iosArm64 {
-        binaries.framework {
-            baseName = "Mime"
-            xcf.add(this)
-        }
+        binaries.framework { baseName = "Mime"; xcf.add(this) }
     }
     iosSimulatorArm64 {
-        binaries.framework {
-            baseName = "Mime"
-            xcf.add(this)
-        }
+        binaries.framework { baseName = "Mime"; xcf.add(this) }
     }
-    // Single `js` target with both browser() and nodejs() runtime configurations.
+    iosX64 {
+        binaries.framework { baseName = "Mime"; xcf.add(this) }
+    }
+
+    // tvOS
+    tvosArm64 {
+        binaries.framework { baseName = "Mime"; xcf.add(this) }
+    }
+    tvosSimulatorArm64 {
+        binaries.framework { baseName = "Mime"; xcf.add(this) }
+    }
+    // tvosX64 was removed in Kotlin 2.3 — "Target is no longer available."
+
+    // watchOS
+    watchosArm32 {
+        binaries.framework { baseName = "Mime"; xcf.add(this) }
+    }
+    watchosArm64 {
+        binaries.framework { baseName = "Mime"; xcf.add(this) }
+    }
+    watchosDeviceArm64 {
+        binaries.framework { baseName = "Mime"; xcf.add(this) }
+    }
+    watchosSimulatorArm64 {
+        binaries.framework { baseName = "Mime"; xcf.add(this) }
+    }
+    // watchosX64 was removed in Kotlin 2.3 — "Target is no longer available."
+
+    // Linux
+    linuxX64()
+    linuxArm64()
+
+    // Windows
+    mingwX64()
+
+    // Android native (NDK targets — separate from the Android JVM library below)
+    androidNativeArm32()
+    androidNativeArm64()
+    androidNativeX86()
+    androidNativeX64()
+
+    // Web — JS (browser + nodejs runtimes on a single target)
+    //
     // The asymmetric `js("jsBrowser")` + `js("jsNode")` split that the workspace
     // template once prescribed cannot satisfy Gradle 9.x's "unique attribute
     // sets" rule: the two targets emit `jsBrowserApiElements` and
     // `jsNodeApiElements` consumable configurations that share an identical
     // attribute set, and the configuration of the `:compileAndroidHostTest`
     // task fails with "Consumable configurations with identical capabilities …
-    // must have unique attributes". Since this port has no Node-only `actual`
-    // (the upstream `mime` crate is pure parsing — no fs, no process), the
-    // single-target layout is also adequate at the source level.
+    // must have unique attributes". This port has no Node-only `actual` so
+    // the single-target layout is also adequate at the source level.
     js {
         browser()
         nodejs()
     }
 
+    // Web — WasmJS
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
+        nodejs()
+    }
+
+    // Web — WasmWASI (experimental; nodejs runtime via wasi-preview1)
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmWasi {
         nodejs()
     }
 
