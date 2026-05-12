@@ -43,18 +43,16 @@ jobs:
           yarn --version
 
       - name: Build and test WASM targets
-        # wasmJs runs under both Chrome (browser) and Node and the
-        # generated test runners work cleanly. wasmWasi compiles fine but
-        # the generated `wasmWasiNodeTest` runner calls
-        # `wasi.finalizeBindings(...)`, which is not a function on Node 22
-        # — the Kotlin 2.3.21 wasmWasi test runner targets a different
-        # WASI API revision than `node:wasi` ships. Compile-only here
-        # demonstrates target coverage without running the broken runner.
+        # wasmJs runs under both Chrome (browser) and Node; wasmWasi runs
+        # under Node with the wasi-preview1 shim. The generated
+        # wasmWasiNodeTest runner calls `wasi.finalizeBindings(...)` which
+        # only exists on Node 24+ — that's why build.gradle.kts pins
+        # `kotlinWasmNodeJsSpec` to 24.15.0 (Active LTS "Krypton").
         env:
           ORG_GRADLE_PROJECT_kotlin_js_yarn_download: "false"
         run: >
           ./gradlew
           wasmJsBrowserTest
           wasmJsNodeTest
-          compileKotlinWasmWasi
+          wasmWasiNodeTest
           --no-configuration-cache

@@ -169,11 +169,11 @@ kotlin {
 }
 
 rootProject.extensions.configure<NodeJsEnvSpec>("kotlinNodeJsSpec") {
-    version.set("22.22.2")
+    version.set("24.15.0")
 }
 
 rootProject.extensions.configure<WasmNodeJsEnvSpec>("kotlinWasmNodeJsSpec") {
-    version.set("22.22.2")
+    version.set("24.15.0")
 }
 
 rootProject.extensions.configure<YarnRootEnvSpec>("kotlinYarnSpec") {
