@@ -1,35 +1,25 @@
-name: CodeQL
+# For most projects, this workflow file will not need changing; you simply need
+# to commit it to your repository.
+#
+# You may wish to alter this file to override the set of languages analyzed,
+# or to provide custom queries or build logic.
+#
+# ******** NOTE ********
+# We have attempted to detect the languages in your repository. Please check
+# the `language` matrix defined below to confirm you have the correct set of
+# supported CodeQL languages.
+#
 
-# This file is the canonical CodeQL workflow path that GitHub's Code Scanning
-# UI registers a configuration against (Setup type: "Actions workflow",
-# Workflow path: ".github/workflows/codeql.yml"). Keeping the CodeQL jobs here
-# means the UI configuration path stays stable across re-runs.
-#
-# Build/test jobs live in ci.yml. CodeQL jobs live here. A test failure in
-# ci.yml does NOT mark CodeQL red, and a CodeQL extraction issue here does
-# NOT mark the build red.
-#
-# Three independent jobs map to GitHub's standard per-language category
-# convention:
-#   - codeql-java-kotlin       → /language:java-kotlin
-#   - codeql-javascript-typescript → /language:javascript-typescript
-#   - codeql-actions           → /language:actions
-# This matches what GitHub Code Scanning's UI registers as separate
-# configurations; combining JS and Actions into a single job with a non-
-# standard `/language:javascript-typescript-actions` category previously
-# left the UI confused about which configuration was current.
+name: "CodeQL Advanced"
 
 on:
   push:
-    branches: [main]
+    branches: [ "main" ]
   pull_request:
-    branches: [main]
-  # Weekly periodic scan catches supply-chain CVEs that appear after merge
-  # when the repo isn't actively receiving commits. Sunday 16:44 UTC is the
-  # GitHub-template default.
+    branches: [ "main" ]
   schedule:
     - cron: '44 16 * * 0'
-
+    
 # Least-privilege default for any future inline job. Each CodeQL job below
 # overrides with `security-events: write` (SARIF upload) plus `actions: read`
 # (codeql-action/analyze@v4) plus `packages: read` (private CodeQL pack
@@ -38,66 +28,58 @@ permissions:
   contents: read
 
 jobs:
-  codeql-java-kotlin:
-    name: CodeQL (java-kotlin)
-    runs-on: ubuntu-latest
-
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    # Runner size impacts CodeQL analysis time. To learn more, please see:
+    #   - https://gh.io/recommended-hardware-resources-for-running-codeql
+    #   - https://gh.io/supported-runners-and-hardware-resources
+    #   - https://gh.io/using-larger-runners (GitHub.com only)
+    # Consider using larger runners or machines with greater resources for possible analysis time improvements.
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
     permissions:
+      # required for all workflows
       security-events: write
+
+      # required to fetch internal or private CodeQL packs
+      packages: read
+
+      # only required for workflows in private repositories
       actions: read
       contents: read
       packages: read
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - language: actions
+          build-mode: none
+        - language: java-kotlin
+          build-mode: autobuild
+        - language: javascript-typescript
+          build-mode: none
+        # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
+        # Use `c-cpp` to analyze code written in C, C++ or both
+        # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
+        # Use 'javascript-typescript' to analyze code written in JavaScript, TypeScript or both
+        # To learn more about changing the languages that are analyzed or customizing the build mode for your analysis,
+        # see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning.
+        # If you are analyzing a compiled language, you can modify the 'build-mode' for that language to customize how
+        # your codebase is analyzed, see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5.2.0
-        with:
-          distribution: zulu
-          java-version: '21'
+    - name: Initialize CodeQL (java-kotlin)
+      uses: github/codeql-action/init@v4
+      with:
+        languages: java-kotlin
+        build-mode: manual
+        # Restores+stores the CodeQL bundle and dependency cache between
+        # runs. Default off in Advanced Setup; turning on cuts ~30-60s
+        # off the init step on warm cache.
+        dependency-caching: true
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.0
-
-      - name: Initialize CodeQL (java-kotlin)
-        uses: github/codeql-action/init@v4
-        with:
-          languages: java-kotlin
-          build-mode: manual
-          # Restores+stores the CodeQL bundle and dependency cache between
-          # runs. Default off in Advanced Setup; turning on cuts ~30-60s
-          # off the init step on warm cache.
-          dependency-caching: true
-
-      # The Kotlin extractor agent is attached to every JVM in this step via
-      # JAVA_TOOL_OPTIONS=-javaagent:codeql-java-agent.jar=java,kotlin. This
-      # is the JVM-spec attachment mechanism — every conforming JVM honors
-      # it at startup independently of any OS-level LD_PRELOAD tracing chain.
-      # The gradle daemon and the JavaExec subprocess that runs
-      # codeqlCompileJvm's kotlinc both load the agent. The `java,kotlin`
-      # spec registers both JavacMainInterceptor and KotlinInterceptor; the
-      # latter hooks `K2JVMCompiler.doExecute(...)` at class load time and
-      # writes per-source-file `*.kt.trap.gz` outputs under
-      # ${CODEQL_EXTRACTOR_JAVA_TRAP_DIR}.
-      #
-      # codeqlCompileJvm runs kotlinc against commonMain as a single-target
-      # JVM compile (no -Xmulti-platform, no -Xfragments). The K2 phased
-      # compilation pipeline that the agent does NOT hook is only engaged
-      # for multiplatform-fragment compiles; a single-target invocation
-      # still dispatches through K2JVMCompiler.doExecute on the same Kotlin
-      # 2.3.21 compiler the workspace uses everywhere else.
-      - name: Extract Kotlin via CodeQL agent
-        run: |
-          export JAVA_TOOL_OPTIONS="-javaagent:${CODEQL_EXTRACTOR_JAVA_ROOT}/tools/codeql-java-agent.jar=java,kotlin"
-          echo "JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}"
-          ./gradlew --no-daemon codeqlCompileJvm --no-configuration-cache
-
-      - name: Perform CodeQL Analysis (java-kotlin)
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:java-kotlin"
 
   codeql-javascript-typescript:
     name: CodeQL (javascript-typescript)
@@ -150,3 +132,4 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:actions"
+
