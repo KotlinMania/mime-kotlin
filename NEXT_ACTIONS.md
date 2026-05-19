@@ -5,13 +5,13 @@ Based on AST analysis, here are the concrete next steps.
 ## Summary
 
 - **Files Present:** 2/2 (100.0%)
-- **Function parity:** 40/51 matched (target 64) — 78.4%
+- **Function parity:** 39/51 matched (target 64) — 76.5%
 - **Class/type parity:** 12/13 matched (target 26) — 92.3%
-- **Combined symbol parity:** 52/64 matched (target 90) — 81.2%
-- **Average inline-code cosine:** 0.54 (function body across 2 matched files)
+- **Combined symbol parity:** 51/64 matched (target 90) — 79.7%
+- **Average inline-code cosine:** 0.23 (function body across 2 matched files)
 - **Average documentation cosine:** 0.40 (doc text across 2 matched files)
-- **Cheat-zeroed Files:** 0
-- **Critical Issues:** 1 files with <0.60 function similarity
+- **Cheat-zeroed Files:** 1
+- **Critical Issues:** 2 files with <0.60 function similarity
 
 ## Priority 1: Fix Incomplete High-Dependency Files
 
@@ -41,15 +41,15 @@ Every matched file is listed below with function and type symbol parity.
 
 ### 2. parse
 
-- **Target:** `mime.Parse`
-- **Similarity:** 0.61
+- **Target:** `mime.Parse [ZERO]`
+- **Similarity:** 0.00
 - **Dependents:** 0
-- **Priority Score:** 41603.9
-- **Functions:** 11/14 matched (target 12)
-- **Missing functions:** `fmt`, `new`, `next`
+- **Priority Score:** 51610.0
+- **Functions:** 10/14 matched (target 12)
+- **Missing functions:** `fmt`, `new`, `next`, `test_parse_iterator_all_invalid`
 - **Types:** 1/2 matched (target 6)
 - **Missing types:** `Item`
-- **Tests:** 3/3 matched
+- **Tests:** 2/3 matched
 
 ## Success Criteria
 

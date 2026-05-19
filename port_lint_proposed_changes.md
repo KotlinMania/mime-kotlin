@@ -1,6 +1,6 @@
 # port-lint Proposed Changes
 
-**Generated:** 2026-05-11
+**Generated:** 2026-05-19
 **Source:** src
 **Target:** src/commonMain/kotlin/io/github/kotlinmania/mime
 
