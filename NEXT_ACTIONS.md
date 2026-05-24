@@ -1,5 +1,9 @@
 # Immediate Actions - High-Value Files
 
+> Ast-distance parity mode is currently disabled for this repo. Re-enable
+> `.ast_distance_config.json` only with explicit authorization before using
+> this generated queue for porting work.
+
 Based on AST analysis, here are the concrete next steps.
 
 ## Summary
@@ -64,8 +68,7 @@ For each file to be considered "complete":
 
 ```bash
 # Initialize task queue for systematic porting
-cd tools/ast_distance
-./ast_distance --init-tasks ../../src rust ../../src/commonMain/kotlin/io/github/kotlinmania/mime kotlin tasks.json ../../AGENTS.md
+./ast_distance --init-tasks tmp/mime/src rust src/commonMain/kotlin/io/github/kotlinmania/mime kotlin tasks.json AGENTS.md
 
 # Get next high-priority task
 ./ast_distance --assign tasks.json <agent-id>
