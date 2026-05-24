@@ -1,6 +1,5 @@
 {
   "type": "disabled",
-  "parity_mode": false,
   "name": "mime-kotlin",
   "enabled": false,
   "source": {
