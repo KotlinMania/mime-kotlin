@@ -1,6 +1,11 @@
 # Kotlin/Gradle build artifacts
 build/
 .gradle/
+.gradle-user-home/
+.gradle-tmp/
+.konan/
+.yarn-cache/
+.android-user-home/
 .kotlin/
 *.class
 *.jar
@@ -25,13 +30,12 @@ high_priority_ports.md
 ast_distance_*.txt
 .cache/
 *.lock
+ast_distance
 kotlin-js-store/*
 !kotlin-js-store/package.json
 !kotlin-js-store/yarn.lock
 !kotlin-js-store/wasm/
 !kotlin-js-store/wasm/yarn.lock
-tools/ast_distance/ast_distance
-tools/ast_distance/build/
 
 # JVM heap dumps
 *.hprof
@@ -47,3 +51,22 @@ __pycache__/
 # Android SDK
 /.android-sdk/
 local.properties
+
+# Swift Package Manager / Xcode workspace state.
+#
+# `swift-test-harness/` is a real SPM package that exercises the Kotlin
+# Swift Export pipeline against the artifacts produced by
+# `embedSwiftExportForXcode`. Its `Package.swift`, `Tests/`, and
+# per-package `.gitignore` (which ignores its own `.build/`) are all
+# tracked. The patterns below cover the Swift/Xcode workspace state
+# that this harness — or any future Swift Package added under the
+# repo — would also produce.
+#
+# Note: the staging directory the Kotlin Swift Export pipeline writes
+# to (`build/swift-test/lib*.a` + `.swiftmodule/` bundles when run with
+# the Xcode-style env vars) is already covered by `build/` above.
+.swiftpm/
+DerivedData/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/

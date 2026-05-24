@@ -1,3 +1,5 @@
+@file:OptIn(org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeCacheApi::class)
+
 import java.io.ByteArrayInputStream
 import java.net.URI
 import java.nio.file.Files
@@ -12,6 +14,8 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.support.serviceOf
 import org.gradle.process.ExecOperations
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.plugin.mpp.DisableCacheInKotlinVersion
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnvSpec
@@ -207,13 +211,25 @@ kotlin {
         binaries.framework { baseName = "Mime"; xcf.add(this) }
     }
     iosArm64 {
-        binaries.framework { baseName = "Mime"; xcf.add(this) }
+        binaries.framework {
+            baseName = "Mime"
+            isStatic = true
+            xcf.add(this)
+        }
     }
     iosSimulatorArm64 {
-        binaries.framework { baseName = "Mime"; xcf.add(this) }
+        binaries.framework {
+            baseName = "Mime"
+            isStatic = true
+            xcf.add(this)
+        }
     }
     iosX64 {
-        binaries.framework { baseName = "Mime"; xcf.add(this) }
+        binaries.framework {
+            baseName = "Mime"
+            isStatic = true
+            xcf.add(this)
+        }
     }
 
     tvosArm64 {
@@ -244,6 +260,15 @@ kotlin {
     androidNativeArm64()
     androidNativeX86()
     androidNativeX64()
+
+    targets.withType<KotlinNativeTarget>().configureEach {
+        binaries.all {
+            disableNativeCache(
+                DisableCacheInKotlinVersion.`2_3_21`,
+                "Local CI uses a project Konan directory in sandboxed runners.",
+            )
+        }
+    }
 
     js {
         browser()
@@ -353,8 +378,8 @@ rootProject.extensions.configure<YarnRootExtension>("kotlinYarn") {
     resolution("**/minimatch", "10.2.5")
     resolution("picomatch", "4.0.4")
     resolution("**/picomatch", "4.0.4")
-    resolution("qs", "6.15.1")
-    resolution("**/qs", "6.15.1")
+    resolution("qs", "6.15.2")
+    resolution("**/qs", "6.15.2")
     resolution("socket.io-parser", "4.2.6")
     resolution("**/socket.io-parser", "4.2.6")
     resolution("ws", "8.20.1")
