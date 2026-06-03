@@ -21,7 +21,6 @@ class Name internal constructor(
     internal val source: String,
     internal val insensitive: Boolean,
 ) : Comparable<Name> {
-
     /**
      * Get the value of this [Name] as a string.
      *

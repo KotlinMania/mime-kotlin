@@ -1,26 +1,39 @@
 // port-lint: source parse.rs
 package io.github.kotlinmania.mime
 
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
+
+@OptIn(ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 sealed class ParseError : Exception {
     constructor() : super()
     constructor(message: String) : super(message)
 
     object MissingSlash : ParseError()
+
     object MissingEqual : ParseError()
+
     object MissingQuote : ParseError()
-    data class InvalidToken(val pos: Int, val byte: Int) : ParseError()
 
-    internal fun s(): String = when (this) {
-        is MissingSlash -> "a slash (/) was missing between the type and subtype"
-        is MissingEqual -> "an equals sign (=) was missing between a parameter and its value"
-        is MissingQuote -> "a quote (\") was missing from a parameter value"
-        is InvalidToken -> "an invalid token was encountered"
-    }
+    data class InvalidToken(
+        val pos: Int,
+        val byte: Int,
+    ) : ParseError()
 
-    override fun toString(): String = when (this) {
-        is InvalidToken -> "${s()}, ${byte.toString(16).uppercase()} at position $pos"
-        else -> s()
-    }
+    internal fun s(): String =
+        when (this) {
+            is MissingSlash -> "a slash (/) was missing between the type and subtype"
+            is MissingEqual -> "an equals sign (=) was missing between a parameter and its value"
+            is MissingQuote -> "a quote (\") was missing from a parameter value"
+            is InvalidToken -> "an invalid token was encountered"
+        }
+
+    override fun toString(): String =
+        when (this) {
+            is InvalidToken -> "${s()}, ${byte.toString(16).uppercase()} at position $pos"
+            else -> s()
+        }
 
     /** Minimum Rust is 1.15, Error::description was still required then */
     fun description(): String = s()
@@ -45,7 +58,9 @@ fun parse(s: String): Mime {
         }
         val c = bytes[i].toInt() and 0xff
         when {
-            isToken(c) -> { i++ }
+            isToken(c) -> {
+                i++
+            }
             c == '/'.code && i > 0 -> {
                 slash = i
                 start = i + 1
@@ -69,9 +84,18 @@ fun parse(s: String): Mime {
         }
         val c = bytes[i].toInt() and 0xff
         when {
-            c == '+'.code && i > start -> { plus = i; i++ }
-            c == ';'.code && i > start -> { start = i; i++; break }
-            isToken(c) -> { i++ }
+            c == '+'.code && i > start -> {
+                plus = i
+                i++
+            }
+            c == ';'.code && i > start -> {
+                start = i
+                i++
+                break
+            }
+            isToken(c) -> {
+                i++
+            }
             else -> throw ParseError.InvalidToken(i, c)
         }
     }
@@ -79,14 +103,15 @@ fun parse(s: String): Mime {
     // params
     val params = paramsFromStr(s, bytes, i, start)
 
-    val src = when (params) {
-        is ParamSource.Utf8 -> s.lowercase()
-        is ParamSource.Custom -> lowerAsciiWithParams(s, params.semicolon, params.params)
-        is ParamSource.None -> {
-            // Chop off the empty list
-            s.substring(0, start).lowercase()
+    val src =
+        when (params) {
+            is ParamSource.Utf8 -> s.lowercase()
+            is ParamSource.Custom -> lowerAsciiWithParams(s, params.semicolon, params.params)
+            is ParamSource.None -> {
+                // Chop off the empty list
+                s.substring(0, start).lowercase()
+            }
         }
-    }
 
     return Mime(
         source = Source.Dynamic(src),
@@ -118,8 +143,14 @@ private fun paramsFromStr(
             }
             val c = bytes[i].toInt() and 0xff
             when {
-                c == ' '.code && i == start -> { start = i + 1; i++; continue@paramsLoop }
-                isToken(c) -> { i++ }
+                c == ' '.code && i == start -> {
+                    start = i + 1
+                    i++
+                    continue@paramsLoop
+                }
+                isToken(c) -> {
+                    i++
+                }
                 c == '='.code && i > start -> {
                     name = Indexed(start, i)
                     start = i + 1
@@ -144,7 +175,9 @@ private fun paramsFromStr(
                         i++
                         break@valueLoop
                     }
-                    isRestrictedQuotedChar(c) -> { i++ }
+                    isRestrictedQuotedChar(c) -> {
+                        i++
+                    }
                     else -> throw ParseError.InvalidToken(i, c)
                 }
             } else {
@@ -160,7 +193,9 @@ private fun paramsFromStr(
                         start = i + 1
                         i++
                     }
-                    isToken(c) -> { i++ }
+                    isToken(c) -> {
+                        i++
+                    }
                     c == ';'.code && i > start -> {
                         value = Indexed(start, i)
                         start = i + 1
@@ -201,10 +236,11 @@ private fun paramsFromStr(
                 val base = p.semicolon + 2
                 val charset = Indexed(base, "charset".length + base)
                 val utf8 = Indexed(charset.second + 1, charset.second + "utf-8".length + 1)
-                params = ParamSource.Custom(
-                    semicolon,
-                    mutableListOf(charset to utf8, name to value),
-                )
+                params =
+                    ParamSource.Custom(
+                        semicolon,
+                        mutableListOf(charset to utf8, name to value),
+                    )
             }
             is ParamSource.Custom -> {
                 p.params.add(name to value)
@@ -218,10 +254,11 @@ private fun paramsFromStr(
                         continue@paramsLoop
                     }
                 }
-                params = ParamSource.Custom(
-                    semicolon,
-                    mutableListOf(name to value),
-                )
+                params =
+                    ParamSource.Custom(
+                        semicolon,
+                        mutableListOf(name to value),
+                    )
             }
         }
     }
@@ -292,24 +329,265 @@ private fun lowerAsciiWithParams(
 //
 // So, clearly, ¯\_(Ä_/¯
 
-internal val TOKEN_MAP: BooleanArray = booleanArrayOf(
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-    false, true,  false, true,  true,  true,  true,  true,  false, false, true,  true,  false, true,  true,  false,
-    true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  false, false, false, false, false, false,
-    false, true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-    true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  false, false, false, true,  true,
-    true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,
-    true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  true,  false, true,  false, true,  false,
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
-)
+internal val TOKEN_MAP: BooleanArray =
+    booleanArrayOf(
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        true,
+        true,
+        false,
+        true,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        false,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        true,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+    )
 
 internal fun isToken(c: Int): Boolean = TOKEN_MAP[c]
 

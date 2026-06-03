@@ -6,32 +6,32 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class ParseTest {
-
     @Test
     fun testLookupTables() {
         for ((i, valid) in TOKEN_MAP.withIndex()) {
             val c = i.toChar()
-            val should = when {
-                c in 'a'..'z' ||
-                    c in 'A'..'Z' ||
-                    c in '0'..'9' ||
-                    c == '!' ||
-                    c == '#' ||
-                    c == '$' ||
-                    c == '%' ||
-                    c == '&' ||
-                    c == '\'' ||
-                    c == '*' ||
-                    c == '+' ||
-                    c == '-' ||
-                    c == '.' ||
-                    c == '^' ||
-                    c == '_' ||
-                    c == '`' ||
-                    c == '|' ||
-                    c == '~' -> true
-                else -> false
-            }
+            val should =
+                when {
+                    c in 'a'..'z' ||
+                        c in 'A'..'Z' ||
+                        c in '0'..'9' ||
+                        c == '!' ||
+                        c == '#' ||
+                        c == '$' ||
+                        c == '%' ||
+                        c == '&' ||
+                        c == '\'' ||
+                        c == '*' ||
+                        c == '+' ||
+                        c == '-' ||
+                        c == '.' ||
+                        c == '^' ||
+                        c == '_' ||
+                        c == '`' ||
+                        c == '|' ||
+                        c == '~' -> true
+                    else -> false
+                }
             assertEquals(should, valid, "'$c' ($i) should be $should")
         }
     }

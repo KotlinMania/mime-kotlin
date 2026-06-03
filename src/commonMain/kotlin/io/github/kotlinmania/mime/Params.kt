@@ -3,15 +3,21 @@ package io.github.kotlinmania.mime
 
 internal sealed class ParamsInner {
     object Utf8 : ParamsInner()
-    class Custom(val source: Source, val params: Iterator<Pair<Indexed, Indexed>>) : ParamsInner()
+
+    class Custom(
+        val source: Source,
+        val params: Iterator<Pair<Indexed, Indexed>>,
+    ) : ParamsInner()
+
     object None : ParamsInner()
 }
 
 /**
  * An iterator over the parameters of a MIME.
  */
-class Params internal constructor(private var inner: ParamsInner) : Iterator<Pair<Name, Name>> {
-
+class Params internal constructor(
+    private var inner: ParamsInner,
+) : Iterator<Pair<Name, Name>> {
     private var cached: Pair<Name, Name>? = null
     private var done: Boolean = false
 
@@ -25,14 +31,16 @@ class Params internal constructor(private var inner: ParamsInner) : Iterator<Pai
             is ParamsInner.Custom -> {
                 if (!current.params.hasNext()) return null
                 val (nameIdx, valueIdx) = current.params.next()
-                val name = Name(
-                    source = current.source.asRef().substring(nameIdx.first, nameIdx.second),
-                    insensitive = true,
-                )
-                val value = Name(
-                    source = current.source.asRef().substring(valueIdx.first, valueIdx.second),
-                    insensitive = name == CHARSET,
-                )
+                val name =
+                    Name(
+                        source = current.source.asRef().substring(nameIdx.first, nameIdx.second),
+                        insensitive = true,
+                    )
+                val value =
+                    Name(
+                        source = current.source.asRef().substring(valueIdx.first, valueIdx.second),
+                        insensitive = name == CHARSET,
+                    )
                 name to value
             }
             is ParamsInner.None -> null
