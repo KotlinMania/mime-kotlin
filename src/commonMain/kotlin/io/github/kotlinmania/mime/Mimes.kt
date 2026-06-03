@@ -1,6 +1,9 @@
 // port-lint: source lib.rs
 package io.github.kotlinmania.mime
 
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
+
 internal object Atoms {
     const val DYNAMIC = 0
     const val STAR_STAR = 1
@@ -50,76 +53,117 @@ val STAR_STAR: Mime = mimeConst(Atoms.STAR_STAR, "*/*", 1)
 
 // `text/*`
 val TEXT_STAR: Mime = mimeConst(Atoms.TEXT_STAR, "text/*", 4)
+
 // `text/plain`
 val TEXT_PLAIN: Mime = mimeConst(Atoms.TEXT_PLAIN, "text/plain", 4)
+
 // `text/plain; charset=utf-8`
 val TEXT_PLAIN_UTF_8: Mime = mimeConst(Atoms.TEXT_PLAIN_UTF_8, "text/plain; charset=utf-8", 4, null, 10)
+
 // `text/html`
 val TEXT_HTML: Mime = mimeConst(Atoms.TEXT_HTML, "text/html", 4)
+
 // `text/html; charset=utf-8`
 val TEXT_HTML_UTF_8: Mime = mimeConst(Atoms.TEXT_HTML_UTF_8, "text/html; charset=utf-8", 4, null, 9)
+
 // `text/css`
 val TEXT_CSS: Mime = mimeConst(Atoms.TEXT_CSS, "text/css", 4)
+
 // `text/css; charset=utf-8`
 val TEXT_CSS_UTF_8: Mime = mimeConst(Atoms.TEXT_CSS_UTF_8, "text/css; charset=utf-8", 4, null, 8)
+
 // `text/javascript`
 val TEXT_JAVASCRIPT: Mime = mimeConst(Atoms.TEXT_JAVASCRIPT, "text/javascript", 4)
+
 // `text/xml`
 val TEXT_XML: Mime = mimeConst(Atoms.TEXT_XML, "text/xml", 4)
+
 // `text/event-stream`
 val TEXT_EVENT_STREAM: Mime = mimeConst(Atoms.TEXT_EVENT_STREAM, "text/event-stream", 4)
+
 // `text/csv`
 val TEXT_CSV: Mime = mimeConst(Atoms.TEXT_CSV, "text/csv", 4)
+
 // `text/csv; charset=utf-8`
 val TEXT_CSV_UTF_8: Mime = mimeConst(Atoms.TEXT_CSV_UTF_8, "text/csv; charset=utf-8", 4, null, 8)
+
 // `text/tab-separated-values`
 val TEXT_TAB_SEPARATED_VALUES: Mime = mimeConst(Atoms.TEXT_TAB_SEPARATED_VALUES, "text/tab-separated-values", 4)
+
 // `text/tab-separated-values; charset=utf-8`
-val TEXT_TAB_SEPARATED_VALUES_UTF_8: Mime = mimeConst(
-    Atoms.TEXT_TAB_SEPARATED_VALUES_UTF_8, "text/tab-separated-values; charset=utf-8", 4, null, 25,
-)
+val TEXT_TAB_SEPARATED_VALUES_UTF_8: Mime =
+    mimeConst(
+        Atoms.TEXT_TAB_SEPARATED_VALUES_UTF_8,
+        "text/tab-separated-values; charset=utf-8",
+        4,
+        null,
+        25,
+    )
+
 // `text/vcard`
 val TEXT_VCARD: Mime = mimeConst(Atoms.TEXT_VCARD, "text/vcard", 4)
 
 // `image/*`
 val IMAGE_STAR: Mime = mimeConst(Atoms.IMAGE_STAR, "image/*", 5)
+
 // `image/jpeg`
 val IMAGE_JPEG: Mime = mimeConst(Atoms.IMAGE_JPEG, "image/jpeg", 5)
+
 // `image/gif`
 val IMAGE_GIF: Mime = mimeConst(Atoms.IMAGE_GIF, "image/gif", 5)
+
 // `image/png`
 val IMAGE_PNG: Mime = mimeConst(Atoms.IMAGE_PNG, "image/png", 5)
+
 // `image/bmp`
 val IMAGE_BMP: Mime = mimeConst(Atoms.IMAGE_BMP, "image/bmp", 5)
+
 // `image/svg+xml`
 val IMAGE_SVG: Mime = mimeConst(Atoms.IMAGE_SVG, "image/svg+xml", 5, 9)
 
 // `font/woff`
 val FONT_WOFF: Mime = mimeConst(Atoms.FONT_WOFF, "font/woff", 4)
+
 // `font/woff2`
 val FONT_WOFF2: Mime = mimeConst(Atoms.FONT_WOFF2, "font/woff2", 4)
 
 // `application/json`
 val APPLICATION_JSON: Mime = mimeConst(Atoms.APPLICATION_JSON, "application/json", 11)
+
 // `application/javascript`
 val APPLICATION_JAVASCRIPT: Mime = mimeConst(Atoms.APPLICATION_JAVASCRIPT, "application/javascript", 11)
+
 // `application/javascript; charset=utf-8`
-val APPLICATION_JAVASCRIPT_UTF_8: Mime = mimeConst(
-    Atoms.APPLICATION_JAVASCRIPT_UTF_8, "application/javascript; charset=utf-8", 11, null, 22,
-)
+val APPLICATION_JAVASCRIPT_UTF_8: Mime =
+    mimeConst(
+        Atoms.APPLICATION_JAVASCRIPT_UTF_8,
+        "application/javascript; charset=utf-8",
+        11,
+        null,
+        22,
+    )
+
 // `application/x-www-form-urlencoded`
-val APPLICATION_WWW_FORM_URLENCODED: Mime = mimeConst(
-    Atoms.APPLICATION_WWW_FORM_URLENCODED, "application/x-www-form-urlencoded", 11,
-)
+val APPLICATION_WWW_FORM_URLENCODED: Mime =
+    mimeConst(
+        Atoms.APPLICATION_WWW_FORM_URLENCODED,
+        "application/x-www-form-urlencoded",
+        11,
+    )
+
 // `application/octet-stream`
 val APPLICATION_OCTET_STREAM: Mime = mimeConst(Atoms.APPLICATION_OCTET_STREAM, "application/octet-stream", 11)
+
 // `application/msgpack`
 val APPLICATION_MSGPACK: Mime = mimeConst(Atoms.APPLICATION_MSGPACK, "application/msgpack", 11)
+
 // `application/pdf`
 val APPLICATION_PDF: Mime = mimeConst(Atoms.APPLICATION_PDF, "application/pdf", 11)
 
 // `multipart/form-data`
 val MULTIPART_FORM_DATA: Mime = mimeConst(Atoms.MULTIPART_FORM_DATA, "multipart/form-data", 9)
 
+@OptIn(ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 @Deprecated("please use TEXT_JAVASCRIPT instead", ReplaceWith("TEXT_JAVASCRIPT"))
 val TEXT_JAVSCRIPT: Mime = TEXT_JAVASCRIPT

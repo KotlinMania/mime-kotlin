@@ -35,7 +35,6 @@ class Mime internal constructor(
     internal val plus: Int?,
     internal val params: ParamSource,
 ) : Comparable<Mime> {
-
     /**
      * Get the top level media type for this [Mime].
      *
@@ -47,10 +46,11 @@ class Mime internal constructor(
      * assertEquals(mime.type(), TEXT)
      * ```
      */
-    fun type(): Name = Name(
-        source = source.asRef().substring(0, slash),
-        insensitive = true,
-    )
+    fun type(): Name =
+        Name(
+            source = source.asRef().substring(0, slash),
+            insensitive = true,
+        )
 
     /**
      * Get the subtype of this [Mime].
@@ -121,11 +121,12 @@ class Mime internal constructor(
      * Returns an iterator over the parameters.
      */
     fun params(): Params {
-        val inner: ParamsInner = when (val p = params) {
-            is ParamSource.Utf8 -> ParamsInner.Utf8
-            is ParamSource.Custom -> ParamsInner.Custom(source, p.params.iterator())
-            is ParamSource.None -> ParamsInner.None
-        }
+        val inner: ParamsInner =
+            when (val p = params) {
+                is ParamSource.Utf8 -> ParamsInner.Utf8
+                is ParamSource.Custom -> ParamsInner.Custom(source, p.params.iterator())
+                is ParamSource.None -> ParamsInner.None
+            }
         return Params(inner)
     }
 
@@ -141,16 +142,18 @@ class Mime internal constructor(
 
     internal fun hasParams(): Boolean = params !is ParamSource.None
 
-    internal fun semicolon(): Int? = when (val p = params) {
-        is ParamSource.Utf8 -> p.semicolon
-        is ParamSource.Custom -> p.semicolon
-        is ParamSource.None -> null
-    }
+    internal fun semicolon(): Int? =
+        when (val p = params) {
+            is ParamSource.Utf8 -> p.semicolon
+            is ParamSource.Custom -> p.semicolon
+            is ParamSource.None -> null
+        }
 
-    internal fun atom(): Int = when (val s = source) {
-        is Source.Atom -> s.tag
-        else -> 0
-    }
+    internal fun atom(): Int =
+        when (val s = source) {
+            is Source.Atom -> s.tag
+            else -> 0
+        }
 
     fun asStr(): String = source.asRef()
 
@@ -165,8 +168,11 @@ class Mime internal constructor(
             is Mime -> {
                 val a = this.atom()
                 val b = other.atom()
-                if (a == 0 || b == 0) mimeEqStr(this, other.source.asRef())
-                else a == b
+                if (a == 0 || b == 0) {
+                    mimeEqStr(this, other.source.asRef())
+                } else {
+                    a == b
+                }
             }
             is String -> mimeEqStr(this, other)
             else -> false
@@ -188,8 +194,11 @@ internal fun mimeEqStr(mime: Mime, s: String): Boolean {
     val p = mime.params
     return when {
         p is ParamSource.Utf8 -> {
-            if (mime.source.asRef().length == s.length) eqAscii(mime.source.asRef(), s)
-            else paramsEq(p.semicolon, mime.source.asRef(), s)
+            if (mime.source.asRef().length == s.length) {
+                eqAscii(mime.source.asRef(), s)
+            } else {
+                paramsEq(p.semicolon, mime.source.asRef(), s)
+            }
         }
         mime.semicolon() != null -> paramsEq(mime.semicolon()!!, mime.source.asRef(), s)
         else -> eqAscii(mime.source.asRef(), s)
@@ -216,7 +225,7 @@ private fun paramsEq(semicolon: Int, a: String, b: String): Boolean {
             aEmpty || bEmpty -> return false
         }
 
-        //name
+        // name
         val aIdx = aRest.indexOf('=')
         if (aIdx < 0) return false
         val aName = aRest.substring(0, aIdx).trimStart()
@@ -228,33 +237,41 @@ private fun paramsEq(semicolon: Int, a: String, b: String): Boolean {
         aRest = aRest.substring(0, aIdx)
         bRest = bRest.substring(0, bIdx)
 
-        //value
-        val aQuoted = if (aRest.isNotEmpty() && aRest[0] == '"') {
-            aRest = aRest.substring(1)
-            true
-        } else false
-        val bQuoted = if (bRest.isNotEmpty() && bRest[0] == '"') {
-            bRest = bRest.substring(1)
-            true
-        } else false
+        // value
+        val aQuoted =
+            if (aRest.isNotEmpty() && aRest[0] == '"') {
+                aRest = aRest.substring(1)
+                true
+            } else {
+                false
+            }
+        val bQuoted =
+            if (bRest.isNotEmpty() && bRest[0] == '"') {
+                bRest = bRest.substring(1)
+                true
+            } else {
+                false
+            }
 
-        val aEnd = if (aQuoted) {
-            val q = aRest.indexOf('"')
-            if (q < 0) return false
-            q
-        } else {
-            val sc = aRest.indexOf(';')
-            if (sc < 0) aRest.length else sc
-        }
+        val aEnd =
+            if (aQuoted) {
+                val q = aRest.indexOf('"')
+                if (q < 0) return false
+                q
+            } else {
+                val sc = aRest.indexOf(';')
+                if (sc < 0) aRest.length else sc
+            }
 
-        val bEnd = if (bQuoted) {
-            val q = bRest.indexOf('"')
-            if (q < 0) return false
-            q
-        } else {
-            val sc = bRest.indexOf(';')
-            if (sc < 0) bRest.length else sc
-        }
+        val bEnd =
+            if (bQuoted) {
+                val q = bRest.indexOf('"')
+                if (q < 0) return false
+                q
+            } else {
+                val sc = bRest.indexOf(';')
+                if (sc < 0) bRest.length else sc
+            }
 
         if (sensitive) {
             if (!eqAscii(aRest.substring(0, aEnd), bRest.substring(0, bEnd))) return false

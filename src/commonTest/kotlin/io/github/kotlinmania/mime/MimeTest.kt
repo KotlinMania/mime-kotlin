@@ -5,25 +5,53 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class MimeTest {
-
     @Test
     fun testNamesMacroConsts() {
-        val all = listOf(
-            STAR,
-            TEXT, IMAGE, AUDIO, VIDEO, APPLICATION, MULTIPART, MESSAGE, MODEL, FONT,
-            PLAIN, HTML, XML, JAVASCRIPT, CSS, CSV, EVENT_STREAM, VCARD,
-            JSON, WWW_FORM_URLENCODED, MSGPACK, OCTET_STREAM, PDF,
-            WOFF, WOFF2,
-            FORM_DATA,
-            BMP, GIF, JPEG, PNG, SVG,
-            BASIC, MPEG, MP4, OGG,
-            CHARSET, BOUNDARY, UTF_8,
-        )
+        val all =
+            listOf(
+                STAR,
+                TEXT,
+                IMAGE,
+                AUDIO,
+                VIDEO,
+                APPLICATION,
+                MULTIPART,
+                MESSAGE,
+                MODEL,
+                FONT,
+                PLAIN,
+                HTML,
+                XML,
+                JAVASCRIPT,
+                CSS,
+                CSV,
+                EVENT_STREAM,
+                VCARD,
+                JSON,
+                WWW_FORM_URLENCODED,
+                MSGPACK,
+                OCTET_STREAM,
+                PDF,
+                WOFF,
+                WOFF2,
+                FORM_DATA,
+                BMP,
+                GIF,
+                JPEG,
+                PNG,
+                SVG,
+                BASIC,
+                MPEG,
+                MP4,
+                OGG,
+                CHARSET,
+                BOUNDARY,
+                UTF_8,
+            )
         for (name in all) {
             assertEquals(name.source.lowercase(), name.source)
         }
@@ -37,41 +65,45 @@ class MimeTest {
         //  - if params is Utf8, the byte at `semicolon` is ';' and the suffix is "; charset=utf-8";
         //    if params is None, no ';' present
         //  - the atom() value is the position+1 in the declaration order
-        data class Case(val mime: Mime, val expectedAtom: Int)
-        val cases = listOf(
-            Case(STAR_STAR, 1),
-            Case(TEXT_STAR, 2),
-            Case(TEXT_PLAIN, 3),
-            Case(TEXT_PLAIN_UTF_8, 4),
-            Case(TEXT_HTML, 5),
-            Case(TEXT_HTML_UTF_8, 6),
-            Case(TEXT_CSS, 7),
-            Case(TEXT_CSS_UTF_8, 8),
-            Case(TEXT_JAVASCRIPT, 9),
-            Case(TEXT_XML, 10),
-            Case(TEXT_EVENT_STREAM, 11),
-            Case(TEXT_CSV, 12),
-            Case(TEXT_CSV_UTF_8, 13),
-            Case(TEXT_TAB_SEPARATED_VALUES, 14),
-            Case(TEXT_TAB_SEPARATED_VALUES_UTF_8, 15),
-            Case(TEXT_VCARD, 16),
-            Case(IMAGE_STAR, 17),
-            Case(IMAGE_JPEG, 18),
-            Case(IMAGE_GIF, 19),
-            Case(IMAGE_PNG, 20),
-            Case(IMAGE_BMP, 21),
-            Case(IMAGE_SVG, 22),
-            Case(FONT_WOFF, 23),
-            Case(FONT_WOFF2, 24),
-            Case(APPLICATION_JSON, 25),
-            Case(APPLICATION_JAVASCRIPT, 26),
-            Case(APPLICATION_JAVASCRIPT_UTF_8, 27),
-            Case(APPLICATION_WWW_FORM_URLENCODED, 28),
-            Case(APPLICATION_OCTET_STREAM, 29),
-            Case(APPLICATION_MSGPACK, 30),
-            Case(APPLICATION_PDF, 31),
-            Case(MULTIPART_FORM_DATA, 32),
+        data class Case(
+            val mime: Mime,
+            val expectedAtom: Int,
         )
+        val cases =
+            listOf(
+                Case(STAR_STAR, 1),
+                Case(TEXT_STAR, 2),
+                Case(TEXT_PLAIN, 3),
+                Case(TEXT_PLAIN_UTF_8, 4),
+                Case(TEXT_HTML, 5),
+                Case(TEXT_HTML_UTF_8, 6),
+                Case(TEXT_CSS, 7),
+                Case(TEXT_CSS_UTF_8, 8),
+                Case(TEXT_JAVASCRIPT, 9),
+                Case(TEXT_XML, 10),
+                Case(TEXT_EVENT_STREAM, 11),
+                Case(TEXT_CSV, 12),
+                Case(TEXT_CSV_UTF_8, 13),
+                Case(TEXT_TAB_SEPARATED_VALUES, 14),
+                Case(TEXT_TAB_SEPARATED_VALUES_UTF_8, 15),
+                Case(TEXT_VCARD, 16),
+                Case(IMAGE_STAR, 17),
+                Case(IMAGE_JPEG, 18),
+                Case(IMAGE_GIF, 19),
+                Case(IMAGE_PNG, 20),
+                Case(IMAGE_BMP, 21),
+                Case(IMAGE_SVG, 22),
+                Case(FONT_WOFF, 23),
+                Case(FONT_WOFF2, 24),
+                Case(APPLICATION_JSON, 25),
+                Case(APPLICATION_JAVASCRIPT, 26),
+                Case(APPLICATION_JAVASCRIPT_UTF_8, 27),
+                Case(APPLICATION_WWW_FORM_URLENCODED, 28),
+                Case(APPLICATION_OCTET_STREAM, 29),
+                Case(APPLICATION_MSGPACK, 30),
+                Case(APPLICATION_PDF, 31),
+                Case(MULTIPART_FORM_DATA, 32),
+            )
         for ((pos, case) in cases.withIndex()) {
             val mime = case.mime
             val asStr = mime.asStr()
@@ -175,11 +207,12 @@ class MimeTest {
 
     @Test
     fun testMimeFromStrEmptyParameterList() {
-        val cases = listOf(
-            "text/event-stream;",
-            "text/event-stream; ",
-            "text/event-stream;       ",
-        )
+        val cases =
+            listOf(
+                "text/event-stream;",
+                "text/event-stream; ",
+                "text/event-stream;       ",
+            )
 
         for (case in cases) {
             val mime = fromStr(case)

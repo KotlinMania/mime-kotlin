@@ -4,15 +4,22 @@ package io.github.kotlinmania.mime
 /**
  * An iterator of parsed mime.
  */
-class MimeIter(private val sourceText: String) : Iterator<MimeIter.Item> {
+class MimeIter(
+    private val sourceText: String,
+) : Iterator<MimeIter.Item> {
     private var pos: Int = 0
     private var cached: Item? = null
     private var done: Boolean = false
 
     /** Result variant returned by the iterator: either a parsed [Mime] or the offending substring. */
     sealed class Item {
-        data class Ok(val mime: Mime) : Item()
-        data class Err(val slice: String) : Item()
+        data class Ok(
+            val mime: Mime,
+        ) : Item()
+
+        data class Err(
+            val slice: String,
+        ) : Item()
     }
 
     private fun advance(): Item? {
