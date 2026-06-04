@@ -17,8 +17,8 @@ loop into the repository. **Your job, Claude, is to:**
 
 1. **Push** the local `automation/swift-export-rollout` branch to `origin`.
 2. **Open a pull request** against the base branch the rollout was made
-   from (NOT necessarily `main`), using the title and body in
-   [§ PR body](#pr-body) below.
+   from (NOT necessarily `main`), using the title and body template in
+   [§ PR template](#pr-template) below.
 3. **Verify** the PR landed cleanly and CI was kicked off.
 4. **Comment on the assigned issue** linking the new PR and close the
    issue with a one-line summary.
@@ -251,7 +251,7 @@ stop and report.
 ### Step 2 — open the pull request
 
 Use `gh pr create` with the title and body from
-[§ PR body](#pr-body) below. The base branch is the one you
+[§ PR template](#pr-template) below. The base branch is the one you
 determined in precondition #4.
 
 ```sh
@@ -260,7 +260,7 @@ gh pr create \
     --head "automation/swift-export-rollout" \
     --title "Wire Kotlin → Swift Export → swift test loop into CI" \
     --body-file <(cat <<'BODY'
-... see § PR body ...
+... see § PR template ...
 BODY
 )
 ```
@@ -300,7 +300,7 @@ Done.
 
 ---
 
-## PR body
+## PR template
 
 ### Title
 
