@@ -70,3 +70,5 @@ DerivedData/
 *.xcuserstate
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
+tools/ast_distance
+.ast_distance_config.json.bak
