@@ -71,4 +71,5 @@ DerivedData/
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
 tools/ast_distance
-.ast_distance_config.json.bak
+swift-test-harness/.build/
+swift-test-harness/Package.resolved
