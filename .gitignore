@@ -73,3 +73,5 @@ DerivedData/
 tools/ast_distance
 swift-test-harness/.build/
 swift-test-harness/Package.resolved
+node_modules/
+package-lock.json
