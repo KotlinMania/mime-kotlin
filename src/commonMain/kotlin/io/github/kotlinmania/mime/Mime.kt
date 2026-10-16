@@ -124,7 +124,7 @@ class Mime internal constructor(
         val inner: ParamsInner =
             when (val p = params) {
                 is ParamSource.Utf8 -> ParamsInner.Utf8
-                is ParamSource.Custom -> ParamsInner.Custom(source, p.params.iterator())
+                is ParamSource.Custom -> ParamsInner.Custom(source, p.params)
                 is ParamSource.None -> ParamsInner.None
             }
         return Params(inner)
