@@ -6,7 +6,8 @@ internal sealed class ParamsInner {
 
     class Custom(
         val source: Source,
-        val params: Iterator<Pair<Indexed, Indexed>>,
+        val params: List<Pair<Indexed, Indexed>>,
+        var index: Int = 0,
     ) : ParamsInner()
 
     object None : ParamsInner()
@@ -29,8 +30,8 @@ class Params internal constructor(
                 value
             }
             is ParamsInner.Custom -> {
-                if (!current.params.hasNext()) return null
-                val (nameIdx, valueIdx) = current.params.next()
+                if (current.index >= current.params.size) return null
+                val (nameIdx, valueIdx) = current.params[current.index++]
                 val name =
                     Name(
                         source = current.source.asRef().substring(nameIdx.first, nameIdx.second),
@@ -68,6 +69,19 @@ class Params internal constructor(
         val c = cached ?: throw NoSuchElementException()
         cached = null
         return c
+    }
+
+    fun sizeHint(): Pair<Int, Int?> {
+        if (done) return 0 to 0
+        val cachedCount = if (cached != null) 1 else 0
+        val innerCount =
+            when (val current = inner) {
+                is ParamsInner.Utf8 -> 1
+                is ParamsInner.Custom -> (current.params.size - current.index).coerceAtLeast(0)
+                is ParamsInner.None -> 0
+            }
+        val total = cachedCount + innerCount
+        return total to total
     }
 
     override fun toString(): String = "Params"

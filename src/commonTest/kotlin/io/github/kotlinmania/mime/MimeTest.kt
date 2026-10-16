@@ -267,4 +267,29 @@ class MimeTest {
         assertEquals("text/plain", TEXT_PLAIN_UTF_8.essenceStr())
         assertEquals("image/svg+xml", IMAGE_SVG.essenceStr())
     }
+
+    @Test
+    fun testParamsSizeHint() {
+        val noneParams = TEXT_PLAIN.params()
+        assertEquals(0 to 0, noneParams.sizeHint())
+        assertFalse(noneParams.hasNext())
+        assertEquals(0 to 0, noneParams.sizeHint())
+
+        val utf8Params = TEXT_PLAIN_UTF_8.params()
+        assertEquals(1 to 1, utf8Params.sizeHint())
+        assertTrue(utf8Params.hasNext())
+        assertEquals(1 to 1, utf8Params.sizeHint())
+        utf8Params.next()
+        assertEquals(0 to 0, utf8Params.sizeHint())
+
+        val customMime = fromStr("text/plain; foo=bar; baz=qux")
+        val customParams = customMime.params()
+        assertEquals(2 to 2, customParams.sizeHint())
+        assertTrue(customParams.hasNext())
+        assertEquals(2 to 2, customParams.sizeHint())
+        customParams.next()
+        assertEquals(1 to 1, customParams.sizeHint())
+        customParams.next()
+        assertEquals(0 to 0, customParams.sizeHint())
+    }
 }
